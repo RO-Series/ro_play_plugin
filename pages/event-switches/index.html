@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>事件开关</title>
+<style>
+  body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f5f6f8;margin:0;padding:20px;color:#1b2432}
+  .card{background:#fff;border:1px solid #e1e6ed;border-radius:10px;padding:18px 20px;max-width:640px;margin:0 auto 16px}
+  h1{font-size:18px;margin:0 0 6px}
+  .sub{font-size:13px;color:#5c6675;margin-bottom:14px}
+  #events{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+  .ev{display:flex;align-items:center;gap:6px;font-size:14px;padding:5px 0;cursor:pointer}
+  .ev input{width:auto}
+  button{background:#2456d6;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:14px;cursor:pointer;margin-top:14px}
+  #msg{margin-top:10px;font-size:13px;color:#0e9488}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>群事件开关</h1>
+  <div class="sub" id="gid">请输入群号加载</div>
+  <div id="events"></div>
+  <button id="save">保存事件开关</button>
+  <div id="msg"></div>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

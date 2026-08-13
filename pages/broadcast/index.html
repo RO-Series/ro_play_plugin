@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>群发广播</title>
+<style>
+  body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f5f6f8;margin:0;padding:20px;color:#1b2432}
+  .card{background:#fff;border:1px solid #e1e6ed;border-radius:10px;padding:18px 20px;max-width:640px;margin:0 auto 16px}
+  h1{font-size:18px;margin:0 0 14px}
+  label{display:block;font-size:13px;color:#5c6675;margin:12px 0 4px}
+  textarea,input[type=number]{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d5dbe3;border-radius:7px;font-size:14px;font-family:inherit}
+  textarea{min-height:80px;resize:vertical}
+  .row{display:flex;align-items:center;gap:8px;margin:12px 0}
+  .row label{margin:0}
+  button{background:#2456d6;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:14px;cursor:pointer}
+  button.secondary{background:#0e9488}
+  #msg{margin-top:12px;font-size:13px;color:#0e9488}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>群发广播</h1>
+  <div class="row"><input type="checkbox" id="enabled" style="width:auto" /><label for="enabled">启用定时广播</label></div>
+  <div class="row">
+    <input type="checkbox" id="atAll" style="width:auto" /><label for="atAll">发送时 @全体</label>
+  </div>
+  <label>模式</label>
+  <select id="mode">
+    <option value="interval">间隔模式</option>
+    <option value="calendar">日历模式</option>
+  </select>
+  <label>间隔秒数（间隔模式）</label>
+  <input type="number" id="intervalSec" min="10" />
+  <label>广播内容</label>
+  <textarea id="content" placeholder="要发送的消息内容（支持 CQ 码）"></textarea>
+  <label>目标群号（每行一个）</label>
+  <textarea id="targets" placeholder="12345678&#10;87654321"></textarea>
+  <div style="margin-top:16px">
+    <button id="save">保存配置</button>
+    <button class="secondary" id="send" style="margin-left:8px">立即群发</button>
+  </div>
+  <div id="msg"></div>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

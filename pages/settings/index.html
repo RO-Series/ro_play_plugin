@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>设置</title>
+<style>
+  body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f5f6f8;margin:0;padding:20px;color:#1b2432}
+  .card{background:#fff;border:1px solid #e1e6ed;border-radius:10px;padding:18px 20px;max-width:640px;margin:0 auto 16px}
+  h1{font-size:18px;margin:0 0 16px}
+  label{display:block;font-size:13px;color:#5c6675;margin:12px 0 4px}
+  input[type=text],select{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d5dbe3;border-radius:7px;font-size:14px}
+  .row{display:flex;align-items:center;gap:8px;margin:12px 0}
+  .row label{margin:0}
+  button{background:#2456d6;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:14px;cursor:pointer}
+  button.secondary{background:#eef1f6;color:#1b2432}
+  #msg{margin-top:12px;font-size:13px;color:#0e9488}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>基础设置</h1>
+  <label>主人 QQ（逗号分隔）</label>
+  <input type="text" id="owner_qqs" placeholder="10001,10002" />
+  <div class="row"><input type="checkbox" id="legacy_no_prefix" style="width:auto" /><label for="legacy_no_prefix">兼容无前缀指令（如直接输入「签到」）</label></div>
+  <div class="row"><input type="checkbox" id="html_render_enabled" style="width:auto" /><label for="html_render_enabled">HTML 渲染出图（签到/运势/状态）</label></div>
+  <label>默认音乐音源</label>
+  <select id="music_source">
+    <option value="汽水">汽水</option>
+    <option value="QQ">QQ</option>
+    <option value="酷我">酷我</option>
+    <option value="网易云">网易云</option>
+  </select>
+  <div style="margin-top:18px">
+    <button id="save">保存配置</button>
+    <button class="secondary" id="reload" style="margin-left:8px">重载插件</button>
+  </div>
+  <div id="msg"></div>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

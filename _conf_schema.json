@@ -1,0 +1,192 @@
+{
+  "owner_qqs": {
+    "description": "主人 QQ（逗号分隔，可多个）",
+    "type": "string",
+    "hint": "拥有全部管理指令权限的 QQ 号，例如：10001,10002",
+    "default": ""
+  },
+  "bypass_license": {
+    "description": "绕过授权系统（开发/自用）",
+    "type": "bool",
+    "default": false
+  },
+  "non_owner_reply": {
+    "description": "非主人消息是否回复",
+    "type": "bool",
+    "default": false
+  },
+  "non_owner_reply_text": {
+    "description": "非主人回复文案",
+    "type": "text",
+    "default": "你不是她......."
+  },
+  "self_trigger": {
+    "description": "消息自触（机器人自身消息参与指令处理）",
+    "type": "bool",
+    "default": false
+  },
+  "assistant_mode": {
+    "description": "助手模式（仅自己消息生效）",
+    "type": "bool",
+    "default": false
+  },
+  "legacy_no_prefix": {
+    "description": "兼容无前缀指令（如直接输入『禁言@人 60』『签到』）",
+    "type": "bool",
+    "hint": "开启后由兜底监听器正则匹配原指令风格；关闭则仅 / 前缀指令生效",
+    "default": true
+  },
+  "group_whitelist": {
+    "description": "群聊消息执行白名单（留空=全部群）",
+    "type": "list",
+    "default": []
+  },
+  "friend_whitelist": {
+    "description": "私聊消息执行白名单（留空=全部好友）",
+    "type": "list",
+    "default": []
+  },
+  "html_render_enabled": {
+    "description": "HTML 渲染出图（关闭则回退纯文本，原 cs_of）",
+    "type": "bool",
+    "default": false
+  },
+  "render_api_base": {
+    "description": "外部渲染服务地址（留空=使用 AstrBot 内置 html_render）",
+    "type": "string",
+    "default": ""
+  },
+  "fortune_no_fallback": {
+    "description": "今日运势渲染失败不发原图",
+    "type": "bool",
+    "default": false
+  },
+  "deep_entertainment_path": {
+    "description": "深度娱乐总开关文件相对路径",
+    "type": "text",
+    "default": "BaiXuan/娱乐系统/深度娱乐/娱乐模式.json"
+  },
+  "music_source": {
+    "description": "默认音乐音源",
+    "type": "string",
+    "options": ["汽水", "QQ", "酷我", "网易云"],
+    "labels": ["汽水", "QQ", "酷我", "网易云"],
+    "default": "汽水"
+  },
+  "music_card_api": {
+    "description": "点歌使用第三方 API 卡片（true）还是自定义 Music 段（false）",
+    "type": "bool",
+    "default": false
+  },
+  "poke_reply_enabled": {
+    "description": "戳一戳自动回复",
+    "type": "bool",
+    "default": true
+  },
+  "poke_reply_max": {
+    "description": "戳一戳记录超过该次数后反拍",
+    "type": "int",
+    "default": 15
+  },
+  "admin_mode_groups": {
+    "description": "管理模式群（群管理在此模式下可执行原 checkOwner3 权限指令）",
+    "type": "list",
+    "default": []
+  },
+  "join_review_default_condition": {
+    "description": "入群审核默认条件（准确/包含/模糊多重/准确多重/字数）",
+    "type": "string",
+    "options": ["准确", "包含", "模糊多重", "准确多重", "字数"],
+    "labels": ["准确", "包含", "模糊多重", "准确多重", "字数"],
+    "default": "准确"
+  },
+  "join_review_daily_limit": {
+    "description": "入群审核单日申请次数上限",
+    "type": "int",
+    "default": 3
+  },
+  "join_verify_tries": {
+    "description": "入群验证码默认尝试次数",
+    "type": "int",
+    "default": 5
+  },
+  "join_verify_timeout": {
+    "description": "入群验证码默认超时（秒，上限 86400）",
+    "type": "int",
+    "default": 300
+  },
+  "join_pm_probability": {
+    "description": "入群私聊默认触发概率（0-100）",
+    "type": "int",
+    "default": 20
+  },
+  "group_wife_cooldown": {
+    "description": "群老婆更换冷却（秒）",
+    "type": "int",
+    "default": 30
+  },
+  "banned_word_default": {
+    "description": "违禁词默认处理方式",
+    "type": "string",
+    "options": ["禁言", "撤回禁言", "撤回", "禁言时长"],
+    "labels": ["禁言", "撤回禁言", "撤回", "禁言时长"],
+    "default": "禁言"
+  },
+  "banned_word_duration": {
+    "description": "违禁词默认禁言时长（秒，上限 2592000）",
+    "type": "int",
+    "default": 600
+  },
+  "auto_like_enabled": {
+    "description": "自动点赞总开关（全部模式）",
+    "type": "bool",
+    "default": false
+  },
+  "auto_like_times": {
+    "description": "自动点赞次数",
+    "type": "int",
+    "default": 20
+  },
+  "backup_enabled": {
+    "description": "自动备份数据开关",
+    "type": "bool",
+    "default": false
+  },
+  "backup_qq": {
+    "description": "备份文件发送到的 QQ",
+    "type": "string",
+    "default": ""
+  },
+  "backup_time": {
+    "description": "备份时间（小时，0-23，可写 0,12 表示 0 点和 12 点）",
+    "type": "string",
+    "default": "12"
+  },
+  "default_events": {
+    "description": "新群默认事件开关",
+    "type": "object",
+    "items": {
+      "join_review": { "description": "入群审核", "type": "bool", "default": true },
+      "join_verify": { "description": "入群验证码", "type": "bool", "default": false },
+      "blacklist": { "description": "黑白名单", "type": "bool", "default": true },
+      "prohibited": { "description": "违禁检测", "type": "bool", "default": true },
+      "talk_stats": { "description": "发言统计", "type": "bool", "default": false },
+      "group_fire": { "description": "群聊续火", "type": "bool", "default": false },
+      "friend_fire": { "description": "好友续火", "type": "bool", "default": false },
+      "video_parse": { "description": "视频解析", "type": "bool", "default": true },
+      "qa": { "description": "问答系统", "type": "bool", "default": false },
+      "join_pm": { "description": "入群私聊", "type": "bool", "default": false },
+      "leave_blacklist": { "description": "退群拉黑", "type": "bool", "default": false },
+      "ban_notice": { "description": "禁言通知", "type": "bool", "default": true },
+      "welcome": { "description": "入群欢迎", "type": "bool", "default": true },
+      "leave_notice": { "description": "退群通知", "type": "bool", "default": false },
+      "hourly_chime": { "description": "整点报时", "type": "bool", "default": false },
+      "group_sign": { "description": "全群打卡", "type": "bool", "default": false },
+      "fake_chat_declare": { "description": "伪造聊天声明", "type": "bool", "default": true },
+      "self_title": { "description": "自助头衔", "type": "bool", "default": false },
+      "red_packet_ban": { "description": "禁发红包", "type": "bool", "default": false },
+      "member_care": { "description": "拍一拍记录", "type": "bool", "default": true },
+      "invite_accept": { "description": "受邀入群自动同意", "type": "bool", "default": false }
+    }
+  }
+}

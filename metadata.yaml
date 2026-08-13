@@ -1,0 +1,8 @@
+name: ro_play_plugin_
+display_name: RO_Play
+author: BaiXuan
+version: 1.0.0
+desc: 综合性 QQ 机器人插件。包含授权系统、群管系统、入群审核、娱乐经济（签到/钓鱼/银行/轮盘/打劫）、群老婆、漂流瓶、发卡、音乐点歌、问答、续火、黑名单/违禁词、发言统计、伪造聊天、马甲、入群私聊、视频解析、今日运势及多种工具。
+short_desc: 群管 + 娱乐 + 音乐 + 视频解析的综合性 QQ 机器人插件
+repo: https://github.com/BaiXuan/astrbot_plugin_ro_play
+astrbot_version: ">=4.16,<5"
