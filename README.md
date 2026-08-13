@@ -50,14 +50,6 @@
 `设置`、`事件开关`、`群发广播`、`数据编辑`、`自动点赞`、`关于`。
 页面通过 Bridge SDK（`window.AstrBotPluginPage`）与后端 API 交互。
 
-## 数据迁移（从旧 MKbot 数据）
-
-在 AstrBot 环境外执行：
-
-```bash
-python migrate_data.py --src "旧NapCat插件数据目录" --dst "AstrBot/data/plugin_data/ro_play_plugin"
-```
-
 ## 许可证
 
 本插件由ROTeam/BaiXuan开发并开源，请勿用于商业用途。
