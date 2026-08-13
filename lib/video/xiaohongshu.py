@@ -1,4 +1,4 @@
-"""小红书视频/图文解析（对应原 MKbot 2.3.4 napcat-plugin-mkbot/lib/api/xhs.mjs）。
+"""小红书视频/图文解析
 
 算法保持与 JS 原版一致：域名白名单校验 -> xhs.com 归一化为 xhslink.com ->
 非 www.xiaohongshu.com 链接先解短链重定向 -> 提取笔记 ID ->

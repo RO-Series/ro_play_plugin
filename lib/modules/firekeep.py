@@ -13,7 +13,7 @@
 - 群聊续火开关经 star.group_event_enabled / star.set_group_event(gid, "group_fire", bool)
   读写 BaiXuan/事件系统/{群号}.json。
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」，MKbot → RO_Play。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
 """
 from __future__ import annotations
 

@@ -55,7 +55,7 @@ class Renderer:
         return await self.star.html_render(html, {}, options={"type": "png", "full_page": True})
 
     async def _render_remote(self, template: str, data: dict, width: int) -> str:
-        """兼容原外部 Puppeteer 服务协议（napcat-plugin-puppeteer /api/render）。"""
+
         base = str(self.star.config.get("render_api_base", "")).rstrip("/")
         if not base:
             raise RuntimeError("render_api_base 未配置")

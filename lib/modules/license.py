@@ -1,7 +1,7 @@
 """授权系统模块（LicenseModule）。
 
 对应原 index.mjs 的 handleCardLicenseCommands（L61-L501）、checkAuthStatusImpl（L15-L43）
-与 KM_TIME_TABLE（L50-L57）。数据路径前缀「筱筱吖」→「BaiXuan」，卡密前缀 MK → RO。
+与 KM_TIME_TABLE（L50-L57）。数据路径前缀「BaiXuan」→「BaiXuan」，卡密前缀 MK → RO。
 
 数据文件：
 - BaiXuan/授权系统/授权信息/{群号}.json（键：授权时间 / 卡密时长）

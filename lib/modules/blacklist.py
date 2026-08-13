@@ -15,7 +15,7 @@
 - BaiXuan/群管系统/黑白名单/群聊/{群号}/人员.json、处理方式.json
 - BaiXuan/群管系统/违禁系统/{群号}/违禁词.json、处理.json、禁发管理.json
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」。
 """
 from __future__ import annotations
 

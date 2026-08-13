@@ -5,7 +5,7 @@
 所有相对路径禁止逃逸根目录；写盘采用临时文件 + 原子替换防止并发损坏。
 
 存储根目录：Path(get_astrbot_data_path()) / "plugin_data" / "astrbot_plugin_ro_play"
-业务子路径沿用原结构，仅将路径前缀「筱筱吖」替换为「BaiXuan」。
+业务子路径沿用原结构，仅将路径前缀「BaiXuan」替换为「BaiXuan」。
 """
 from __future__ import annotations
 

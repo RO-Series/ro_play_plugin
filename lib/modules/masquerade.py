@@ -10,7 +10,7 @@
 
 数据：BaiXuan/群管系统/马甲系统/{群号}.json（纯文本，默认「天宫☆」）。
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」，MKbot → RO_Play。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
 """
 from __future__ import annotations
 

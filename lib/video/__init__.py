@@ -1,8 +1,5 @@
 """视频解析模块（MKbot 迁移）。
 
-对应原 MKbot 2.3.4（napcat-plugin-mkbot）lib/api/ 下 4 个视频解析 JS 模块的 Python 重写，
-将 blbl.mjs / dy.mjs / xhs.mjs / ks.mjs 的算法（解短链 -> 抓页面内嵌状态
-RENDER_DATA / __INITIAL_STATE__ / INIT_STATE / WBI -> 提取直链/图片）原样移植。
 
 本模块对外提供两个入口：
 - match_platform(text): 按 b23.tv/bilibili -> v.douyin -> xhslink/xiaohongshu -> v.kuaishou

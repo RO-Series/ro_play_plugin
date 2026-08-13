@@ -1,5 +1,4 @@
-"""快手视频/图片解析（对应原 MKbot 2.3.4 napcat-plugin-mkbot/lib/api/ks.mjs）。
-
+"""快手视频/图片解析
 算法保持与 JS 原版一致：提取链接 -> 跟随重定向得到真实链接 ->
 识别内容类型（short-video / long-video / photo）与内容 ID ->
 抓取页面并依次解析内嵌状态 window.INIT_STATE（tusjoh 开头的媒体节点，

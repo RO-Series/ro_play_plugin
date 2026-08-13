@@ -1,4 +1,4 @@
-"""B 站视频解析（对应原 MKbot 2.3.4 napcat-plugin-mkbot/lib/api/blbl.mjs）。
+"""B 站视频解析
 
 算法保持与 JS 原版一致：解析 b23.tv 短链（跟随重定向还原）或直接提取 BV 号 ->
 调用 B 站 WBI 接口 x/web-interface/wbi/view 获取视频信息（标题/封面/作者/cid）->

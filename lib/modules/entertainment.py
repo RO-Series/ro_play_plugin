@@ -5,7 +5,7 @@
 银行系统（L11530）、存款/取款（L11556-L11701）、转移归笺（L11702）、
 钓鱼（L15623）、我的鱼获（L15741）、出售（L15850）、商店（L16940-L17109）。
 
-数据路径前缀「筱筱吖」→「BaiXuan」。鱼池模板：star.data_path/templates/text/
+数据路径前缀「BaiXuan」→「BaiXuan」。鱼池模板：star.data_path/templates/text/
 fish_pool_1.json（普通）、fish_pool_2.json（高级）。
 """
 from __future__ import annotations

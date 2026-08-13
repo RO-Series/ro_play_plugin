@@ -9,7 +9,7 @@
   BaiXuan/扩展功能/问答系统/图片数据/{随机}.png，以 [img:xxx.png] 占位存储；
   回复 / 详细列表时把 [img:xxx.png] 还原为本地 file:/// CQ 码。
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」。
 数据：BaiXuan/扩展功能/问答系统/{群号}/精准.json、模糊.json
 （均为 {问题: 答案} 字典）。
 """

@@ -13,7 +13,7 @@
 - BaiXuan/扩展功能/入群私聊/收录状态.txt（{"状态": 开始|结束, "群号": ...}）
 - BaiXuan/扩展功能/入群私聊/概率.json（{群号: 0~1 浮点}，缺省回退配置 join_pm_probability）
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」。
 """
 from __future__ import annotations
 

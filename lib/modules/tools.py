@@ -22,7 +22,7 @@
 - 搜饰品 https://sdt-api.ok-skins.com/user/skin/v1/auto-completion?q=...
 - MC https://uapis.cn/api/v1/game/minecraft/serverstatus?server=...
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」，MKbot → RO_Play。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""抖音视频解析（对应原 MKbot 2.3.4 napcat-plugin-mkbot/lib/api/dy.mjs）。
+"""抖音视频解析
 
 算法保持与 JS 原版一致：提取链接 -> v.douyin.com 短链先解重定向得到真实链接 ->
 提取视频 ID -> 依次请求 iesdouyin.com / douyin.com 的 share 页 ->

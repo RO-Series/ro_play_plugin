@@ -10,7 +10,7 @@
 
 数据：BaiXuan/伪造聊天/{群号}/声明.json（{"开关": "开启"}）。
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」，MKbot → RO_Play。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
 """
 from __future__ import annotations
 

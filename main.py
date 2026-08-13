@@ -1,13 +1,4 @@
 """RO_Play 插件主入口（迁移自 MKbot 2.3.4）。
-
-对应原 index.mjs 的 plugin_init / plugin_onmessage / plugin_onevent /
-plugin_on_config_change / plugin_cleanup。AstrBot 中：
-- 生命周期：__init__ + @filter.on_astrbot_loaded() + terminate()
-- 指令：@filter.command / @filter.command_group
-- OneBot notice/request 事件：EventMessageType.ALL 兜底监听器解析 raw_message
-- 定时任务：asyncio 任务（句柄保存，terminate 取消）
-
-命名替换：路径前缀「筱筱吖」→「BaiXuan」，MKbot → RO_Play，MK → RO。
 """
 from __future__ import annotations
 
@@ -497,10 +488,10 @@ class Main(Star):
         from quart import jsonify
         return jsonify(
             {
-                "name": "astrbot_plugin_ro_play",
+                "name": "ro_play_plugin",
                 "display_name": "RO_Play",
                 "version": "1.0.0",
-                "source": "MKbot 2.3.4 (NapCat) → AstrBot",
+                "source": "AstrBot",
                 "desc": "群管 + 娱乐 + 音乐 + 视频解析的综合性 QQ 机器人插件",
             }
         )

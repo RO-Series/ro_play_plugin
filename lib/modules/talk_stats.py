@@ -8,7 +8,7 @@
 数据：BaiXuan/扩展功能/发言统计/{群号}/次数统计/{日}.json
 （{QQ: 次数}，文件名为 YYYY-MM-DD，可字典序比较）。
 
-命名替换：路径前缀「筱筱吖」→「BaiXuan」。
+命名替换：路径前缀「BaiXuan」→「BaiXuan」。
 """
 from __future__ import annotations
 
