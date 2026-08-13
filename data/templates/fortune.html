@@ -8,10 +8,10 @@
         :root {
             /* --- 背景配置区域 --- */
             /* 1. 默认纯色 */
-            --default-bg-color: #fff0f3; 
+            --default-bg-color: #fff0f3;
             /* 2. 通过 image_name 参数自动加载 image 文件夹中的图片 */
             /* 示例：image_name: "运势1.png" */
-            --bg-input: none; 
+            --bg-input: none;
 
             /* UI 颜色配置 */
             --accent-pink: #FFB6C1;
@@ -165,15 +165,14 @@
     </style>
 </head>
 <body>
-    <!-- 01. 背景容器 -->
+
     <div class="background-container"></div>
 
-    <!-- 02. 内容容器 -->
     <div class="ui-overlay">
-        
+
         <div class="glass-card">
             <header class="card-header">
-                <!-- 头像已锁定圆形 -->
+
                 <div class="avatar-wrapper">
                     <img src="https://q4.qlogo.cn/g?b=qq&nk={{qq}}&s=5" alt="Avatar">
                 </div>
@@ -181,7 +180,7 @@
                     <div class="time-prefix">time:{{time}}</div>
                     <div class="title">{{Sorte}}</div>
                     <div class="star-box">
-                        <!-- 纯代码星标 -->
+
                         <span style="font-size: 18px;">{{Estrelas}}</span>
                     </div>
                 </div>
@@ -192,7 +191,7 @@
                     <div class="glow-bar"></div>
                     <div class="focus-text">{{signText}}</div>
                 </div>
-                
+
                 <p class="sub-text">
                     {{unSignText}}
                 </p>
@@ -215,7 +214,7 @@
         // 自动加载背景图片（原始逻辑：只负责设置 background-image）
         (function() {
             const bgContainer = document.querySelector('.background-container');
-            
+
             // 方式1: 通过 backgroundImageCSS 参数直接设置（优先级最高）
             // 支持：
             // - HTTP URL: url(http://...)
@@ -228,7 +227,7 @@
                 markRenderReady();
                 return;
             }
-            
+
             // 方式2: 通过 image_name 参数加载图片
             // 注意：Puppeteer渲染时需要完整的HTTP URL，相对路径无法加载
             const imageName = '{{image_name}}';
@@ -245,7 +244,7 @@
                 markRenderReady();
                 return;
             }
-            
+
             // 默认加载运势3 - 使用相对路径（仅在正常HTTP访问时有效）
             const defaultImage = `image/运势3.png`;
             bgContainer.style.backgroundImage = `url('${defaultImage}')`;

@@ -1,13 +1,3 @@
-"""视频解析模块（MKbot 迁移）。
-
-
-本模块对外提供两个入口：
-- match_platform(text): 按 b23.tv/bilibili -> v.douyin -> xhslink/xiaohongshu -> v.kuaishou
-  的优先级用正则提取链接，返回清洗后的 URL（无法识别返回 None）。
-- parse(text): 识别平台后分发到对应子模块解析，统一返回
-  {"title": str, "author": str, "cover": str, "url": str,
-   "type": "video|image|live", "images": list, "music": dict | None}。
-"""
 from __future__ import annotations
 
 import re
@@ -28,19 +18,16 @@ _session: aiohttp.ClientSession | None = None
 _TAG_RE = re.compile(r"<[^>]*>")
 _TAIL_RE = re.compile(r"[^\w\-./?=&:#]+$")
 
-
 def _strip_tags(text: str) -> str:
-    """去除 HTML 标签（对应原 JS stripTags）。"""
+
     return _TAG_RE.sub("", text)
 
-
 def _clean_url_tail(url: str) -> str:
-    """去掉链接尾部多余标点/非法字符（对应原 JS cleanUrlTail）。"""
+
     return _TAIL_RE.sub("", url)
 
-
 def _decode_bytes(raw: bytes) -> str:
-    """响应字节解码：优先 utf-8，解码失败回退 gbk（抖音等页面编码场景）。"""
+
     for encoding in ("utf-8", "gbk"):
         try:
             return raw.decode(encoding)
@@ -48,9 +35,8 @@ def _decode_bytes(raw: bytes) -> str:
             continue
     return raw.decode("utf-8", errors="replace")
 
-
 def _get_session() -> aiohttp.ClientSession:
-    """获取全局共享 aiohttp 会话（超时 15s，懒创建）。"""
+
     global _session
     if _session is None or _session.closed:
         _session = aiohttp.ClientSession(
@@ -58,14 +44,12 @@ def _get_session() -> aiohttp.ClientSession:
         )
     return _session
 
-
 async def _close_session() -> None:
-    """关闭共享会话（供插件卸载时清理，非必须调用）。"""
+
     global _session
     if _session is not None and not _session.closed:
         await _session.close()
     _session = None
-
 
 async def _fetch_text(
     url: str,
@@ -74,10 +58,7 @@ async def _fetch_text(
     user_agent: str = DEFAULT_USER_AGENT,
     allow_redirects: bool = True,
 ) -> str:
-    """GET 请求并返回解码后的文本。
 
-    异常统一捕获并抛 RuntimeError（携带中文信息）；allow_redirects 控制是否跟随重定向。
-    """
     request_headers: dict[str, str] = {"User-Agent": user_agent}
     if headers:
         request_headers.update(headers)
@@ -91,37 +72,31 @@ async def _fetch_text(
             return _decode_bytes(raw)
     except RuntimeError:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(f"请求失败（{url}）: {e}") from e
 
-
 async def _follow_redirect(url: str, user_agent: str = DEFAULT_USER_AGENT) -> str:
-    """跟随重定向并返回最终 URL（对应原 JS followRedirect）。"""
+
     try:
         async with _get_session().get(
             url, headers={"User-Agent": user_agent}, allow_redirects=True
         ) as resp:
             return str(resp.url)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return url
 
-
 async def _get_location(url: str, user_agent: str = DEFAULT_USER_AGENT) -> str | None:
-    """发起不跟随重定向的 GET，返回 Location 头（对应原 JS redirect: "manual" 分支）。"""
+
     try:
         async with _get_session().get(
             url, headers={"User-Agent": user_agent}, allow_redirects=False
         ) as resp:
             return resp.headers.get("Location")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
-
 def _extract_balanced_json(html: str, marker: str) -> str | None:
-    """从 marker 后第一个 '{' 起做括号配平，取出完整 JSON 字面量。
 
-    兼容字符串内括号（双引号/单引号、转义），对应原 JS extractBalancedJsonFrom。
-    """
     start = html.find(marker)
     if start < 0:
         return None
@@ -159,8 +134,6 @@ def _extract_balanced_json(html: str, marker: str) -> str | None:
         i += 1
     return None
 
-
-# 平台优先级：bilibili -> douyin -> xiaohongshu -> kuaishou
 _PLATFORM_PATTERNS: list[tuple[str, str]] = [
     ("bilibili", r"https?://b23\.tv/[a-zA-Z0-9]+"),
     ("bilibili", r"https?://[^\s\u4e00-\u9fff]*bilibili\.com/[^\s\u4e00-\u9fff]*"),
@@ -171,13 +144,12 @@ _PLATFORM_PATTERNS: list[tuple[str, str]] = [
     ("xiaohongshu", r"https?://[^\s\u4e00-\u9fff]*xiaohongshu\.com/[^\s\u4e00-\u9fff]*"),
     ("kuaishou", r"https?://v\.kuaishou\.com/[a-zA-Z0-9_-]+[^\s\u4e00-\u9fff]*"),
     ("kuaishou", r"https?://[^\s\u4e00-\u9fff]*kuaishou\.com[^\s\u4e00-\u9fff]*"),
-    # 末尾兜底：纯文本中的裸 BV 号（置于所有 URL 模式之后，避免抢占 URL 平台优先级）
+
     ("bilibili", r"(?<![a-zA-Z0-9])BV[a-zA-Z0-9]{10}"),
 ]
 
-
 def _match(text: str) -> tuple[str, str] | None:
-    """按优先级匹配平台，返回 (平台名, 清洗后链接)；无法识别返回 None。"""
+
     cleaned = _strip_tags(text or "")
     for platform, pattern in _PLATFORM_PATTERNS:
         matched = re.search(pattern, cleaned, re.IGNORECASE)
@@ -185,24 +157,13 @@ def _match(text: str) -> tuple[str, str] | None:
             return platform, _clean_url_tail(matched.group(0).strip())
     return None
 
-
 def match_platform(text: str) -> str | None:
-    """按 b23.tv/bilibili -> v.douyin -> xhslink/xiaohongshu -> v.kuaishou 优先级提取链接。
 
-    返回清洗后的 URL（去掉尾部标点）；无法识别时返回 None。
-    """
     result = _match(text)
     return result[1] if result else None
 
-
 async def parse(text: str) -> dict:
-    """识别平台并分发到对应模块解析，统一返回结构：
 
-    {"title": str, "author": str, "cover": str, "url": str,
-     "type": "video|image|live", "images": list, "music": dict | None}
-
-    解析失败抛出 RuntimeError（中文信息）。
-    """
     result = _match(text)
     if result is None:
         raise RuntimeError("未识别到支持的视频平台链接（支持 B站/抖音/小红书/快手）")

@@ -245,7 +245,7 @@
     <div class="glass-card">
       <header class="card-header">
         <div class="avatar-wrapper">
-          <!-- 头像：图片失败不影响渲染，保留文字兜底 -->
+
           <img
             class="avatar-img"
             id="avatarImg"
@@ -257,7 +257,7 @@
             onerror="this.style.display='none';"
             onload="this.style.display='block'; var init=document.getElementById('avatarInitial'); if(init) init.style.display='none';"
           >
-            <!-- 图片加载失败时直接留空（不使用文字兜底） -->
+
             <div class="avatar-initial" id="avatarInitial" style="display:none"></div>
         </div>
         <div class="title-group">
@@ -267,7 +267,7 @@
       </header>
 
       <div class="panels">
-        <!-- 01. 货币 -->
+
         <section class="panel">
           <div class="panel-title"><span class="dot"></span>货币</div>
           <div class="panel-grid-2">
@@ -286,7 +286,6 @@
           </div>
         </section>
 
-        <!-- 02. 道具 -->
         <section class="panel">
           <div class="panel-title"><span class="dot"></span>道具</div>
           <div class="kv" style="margin-top: 6px;">
@@ -297,7 +296,6 @@
           </div>
         </section>
 
-        <!-- 03. 签到 -->
         <section class="panel">
           <div class="panel-title"><span class="dot"></span>签到</div>
           <div class="panel-grid-2">
@@ -363,4 +361,3 @@
   </script>
 </body>
 </html>
-

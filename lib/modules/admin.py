@@ -1,15 +1,3 @@
-"""群管系统模块（AdminModule）。
-
-对应原 index.mjs 的群管指令区：我要头衔/设置头衔（L9345-L9492）、
-全体禁言（L9494）、禁言/解禁（L9536）、踢出/黑踢（L9609）、上管/下管（L9684）、
-获取禁言列表（L9757）、全解群员（L9802）、发公告（L15237）、
-可群发列表/新增/取消/执行群发（L15282-L15543）。
-
-调用动作：set_group_ban / set_group_kick / set_group_admin / set_group_special_title /
-set_group_whole_ban / set_group_card / send_group_notice / get_group_shut_list /
-get_group_member_list / delete_msg。
-黑踢 = 踢出 + 拉黑名单（调 star.modules["blacklist"].add_blacklist）。
-"""
 from __future__ import annotations
 
 import re
@@ -21,18 +9,16 @@ from astrbot.api import logger
 
 from lib.cqcode import cq_at_all
 
-# 群事件名（原 array_shijian，21 个）
 GROUP_EVENTS: list[str] = [
     "禁言通知", "入群审核", "邀人统计", "自助头衔", "伪造聊天", "黑白名单",
     "退群拉黑", "退群通知", "整点报时", "禁发红包", "入群欢迎", "违禁检测",
     "进阶检测", "发言统计", "群聊续火", "视频解析", "问答系统", "管理模式",
     "入群验证", "马甲系统", "入群私聊",
 ]
-# 全局事件名（原 array_RCshijian，5 个）
+
 GLOBAL_EVENTS: list[str] = ["全群打卡", "自动点赞", "好友续火", "自动备份", "受邀同意"]
 
 _BROADCAST_RE = re.compile(r"^☆?\s*执行群发(?:公告|文本)([\s\S]*)$")
-
 
 def _time_a(fmt: str, ts: int | None = None) -> str:
     t = time.localtime(int(time.time()) if ts is None else int(ts))
@@ -45,17 +31,13 @@ def _time_a(fmt: str, ts: int | None = None) -> str:
         out = out.replace(k, v)
     return out
 
-
 class AdminModule:
-    """群管系统。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
 
-    # ==================== 工具 ====================
-
     def _at_targets(self, event: Any) -> list[str]:
-        """从 event.get_messages() 提取 Comp.At 段（原 giveAT）。"""
+
         targets: list[str] = []
         try:
             for seg in event.get_messages() or []:
@@ -63,7 +45,7 @@ class AdminModule:
                     qq = getattr(seg, "qq", "")
                     if qq and str(qq) not in ("all", ""):
                         targets.append(str(qq))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"提取 @ 目标失败: {e}")
         return targets
 
@@ -73,12 +55,12 @@ class AdminModule:
             for seg in event.get_messages() or []:
                 if isinstance(seg, Comp.Plain):
                     parts.append(str(getattr(seg, "text", "")))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return "".join(parts)
 
     async def _bot_role(self, event: Any, gid: Any) -> int:
-        """机器人在群内的身份等级：owner=3 admin=2 member=1。"""
+
         try:
             self_id = getattr(event.message_obj, "self_id", None) if event.message_obj else None
             if not self_id:
@@ -88,7 +70,7 @@ class AdminModule:
                 return 1
             role = info.get("role", "member")
             return {"owner": 3, "admin": 2, "member": 1}.get(role, 1)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"获取机器人群角色失败: {e}")
             return 1
 
@@ -99,23 +81,21 @@ class AdminModule:
                 return 1
             role = info.get("role", "member")
             return {"owner": 3, "admin": 2, "member": 1}.get(role, 1)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"获取目标群角色失败: {e}")
             return 1
 
     async def _add_blacklist(self, gid: Any, uid: Any) -> None:
-        """把用户加入黑名单（调用 blacklist 模块，失败仅记录日志）。"""
+
         try:
             mod = self.star.modules.get("blacklist")
             if mod and hasattr(mod, "add_blacklist"):
                 await mod.add_blacklist(gid, uid)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"拉黑失败: {e}")
 
-    # ==================== 群管指令 ====================
-
     async def mute(self, event: Any, seconds: int = 60):
-        """禁言：/admin mute 秒数 或 /禁言 秒数，需 @ 目标。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -141,12 +121,12 @@ class AdminModule:
                     lines.append(f"❌{uid}:执行失败")
             head = f"已对【{ok}】人有效禁言啦～\n══════════════\n" + "\n".join(lines)
             return head
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"禁言异常: {e}")
             return "禁言执行出错，请查看日志"
 
     async def unmute(self, event: Any):
-        """解禁：需 @ 目标。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -168,12 +148,12 @@ class AdminModule:
                 else:
                     lines.append(f"❌{uid}:执行失败")
             return f"已对【{ok}】人有效解禁啦～\n══════════════\n" + "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"解禁异常: {e}")
             return "解禁执行出错，请查看日志"
 
     async def kick(self, event: Any):
-        """踢出：需 @ 目标。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -196,12 +176,12 @@ class AdminModule:
                 else:
                     lines.append(f"❌{uid}:执行失败")
             return f"已对【{ok}】人有效踢出啦～\n══════════════\n" + "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"踢出异常: {e}")
             return "踢出执行出错，请查看日志"
 
     async def black_kick(self, event: Any):
-        """黑踢：踢出 + 拉黑名单。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -227,12 +207,12 @@ class AdminModule:
                 else:
                     lines.append(f"❌{uid}:执行失败")
             return f"已对【{ok}】人有效黑踢啦～\n══════════════\n" + "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"黑踢异常: {e}")
             return "黑踢执行出错，请查看日志"
 
     async def whole_ban(self, event: Any, enable: bool = True):
-        """全体禁言/解禁：/admin wholeban [true|false]。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -243,12 +223,12 @@ class AdminModule:
             if not done:
                 return "执行失败，可能机器人没有群管权限唉～"
             return "这就把全体禁言给打开，让大家都不能说话！" if enable else "大家又可以说话啦！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"全体禁言异常: {e}")
             return "全体禁言执行出错，请查看日志"
 
     async def promote(self, event: Any):
-        """上管：需 @ 目标（仅群主）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -275,12 +255,12 @@ class AdminModule:
                 else:
                     lines.append(f"❌{uid}:执行失败")
             return f"已对【{ok}】人有效上管啦～\n══════════════\n" + "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"上管异常: {e}")
             return "上管执行出错，请查看日志"
 
     async def demote(self, event: Any):
-        """下管：需 @ 目标（仅群主）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -307,12 +287,12 @@ class AdminModule:
                 else:
                     lines.append(f"❌{uid}:执行失败")
             return f"已对【{ok}】人有效下管啦～\n══════════════\n" + "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"下管异常: {e}")
             return "下管执行出错，请查看日志"
 
     async def ban_list(self, event: Any):
-        """获取禁言列表。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -332,12 +312,12 @@ class AdminModule:
                 lines.append(f"{i + 1}.{qq}({nick})\n[结束时间]:{end}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"获取禁言列表异常: {e}")
             return "获取禁言列表出错，请查看日志"
 
     async def unban_all(self, event: Any):
-        """全解群员：遍历禁言列表逐一解禁。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -372,7 +352,7 @@ class AdminModule:
                     else:
                         fail += 1
                         detail.append(f"❌{i + 1}.{uid}({nick})：解除失败")
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     fail += 1
                     detail.append(f"❌{i + 1}.{uid}({nick})：{e}")
             return (
@@ -380,12 +360,12 @@ class AdminModule:
                 f"[禁言总数] {len(items)}\n[解除成功] {ok}\n[权限跳过] {skip}\n[执行失败] {fail}\n"
                 "══════════════\n" + "\n".join(detail)
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"全解群员异常: {e}")
             return "全解群员执行出错，请查看日志"
 
     async def self_title(self, event: Any, title: str = ""):
-        """我要头衔：自助头衔（需群事件「自助头衔」开启）。"""
+
         try:
             gid = event.get_group_id()
             if not gid:
@@ -401,12 +381,12 @@ class AdminModule:
             if not done:
                 return "设置头衔失败：窝好像没有权限设置头衔哎～～"
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"我要头衔异常: {e}")
             return None
 
     async def set_title(self, event: Any, title: str = ""):
-        """设置头衔：需 @ 目标。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -424,12 +404,12 @@ class AdminModule:
                 )
                 lines.append(f"{'✅' if done else '❌'}{uid}")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"设置头衔异常: {e}")
             return "设置头衔执行出错，请查看日志"
 
     async def send_notice(self, event: Any, content: str = ""):
-        """发公告：/发公告 内容。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -443,12 +423,12 @@ class AdminModule:
                 "send_group_notice", group_id=gid, content=content
             )
             return "公告发送成功啦～！" if done else "公告发送失败，可能机器人没有群管权限唉～"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发公告异常: {e}")
             return "公告发送出错，请查看日志"
 
     async def broadcast(self, event: Any, content: str = ""):
-        """执行群发：向「可群发.json」中的全部群发送。content 以 ☆ 开头则附加 @全体。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -476,19 +456,19 @@ class AdminModule:
                         ok += 1
                     else:
                         failed.append(gid)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.error(f"群发到 {gid} 失败: {e}")
                     failed.append(gid)
             report = f"群发「文本」完成：成功 {ok}/{total}"
             if failed:
                 report += "\n发送失败：" + "、".join(failed)
             return report
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"执行群发异常: {e}")
             return "执行群发出错，请查看日志"
 
     async def broadcast_list(self, event: Any):
-        """获取/查看可群发列表。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -502,12 +482,12 @@ class AdminModule:
                 lines.append(f"{i + 1}.{gid}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"获取可群发列表异常: {e}")
             return "获取可群发列表出错，请查看日志"
 
     async def broadcast_add(self, event: Any, gid: str = ""):
-        """新增可群发目标：/新增可群发目标 群号。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -521,12 +501,12 @@ class AdminModule:
             data.append(gid)
             await self.star.store.write_json(rel, data)
             return f"好哒好哒！这就把「{gid}」介个群给加到列表里面！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"新增可群发目标异常: {e}")
             return "新增可群发目标出错，请查看日志"
 
     async def broadcast_del(self, event: Any, gid: str = ""):
-        """取消可群发目标：/取消可群发目标 群号。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -540,12 +520,12 @@ class AdminModule:
             data = [x for x in data if x != gid]
             await self.star.store.write_json(rel, data)
             return f"好哒！介就把「{gid}」介个群给去掉！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"取消可群发目标异常: {e}")
             return "取消可群发目标出错，请查看日志"
 
     async def set_event(self, event: Any, name: str = "", enabled: bool = True):
-        """开启/关闭事件：群事件写入 BaiXuan/事件系统/{gid}.json，全局事件写入 全局.json。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -563,12 +543,12 @@ class AdminModule:
                 return "该功能仅支持群聊使用哦～"
             await self.star.set_group_event(str(gid), name, bool(enabled))
             return f"已将本群事件【{name}】设置为{'开启' if enabled else '关闭'}！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"设置事件异常: {e}")
             return "事件设置出错，请查看日志"
 
     async def event_list(self, event: Any):
-        """事件列表：查看本群/全局事件开关状态。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -585,12 +565,12 @@ class AdminModule:
                 lines.append(f" - {name}: {state}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"事件列表异常: {e}")
             return "事件列表获取出错，请查看日志"
 
     async def member_list(self, event: Any):
-        """获取本群成员。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -605,23 +585,21 @@ class AdminModule:
                 lines.append(f"{i + 1}.{m.get('user_id')}({m.get('card') or m.get('nickname', '')})")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"获取本群成员异常: {e}")
             return "获取本群成员出错，请查看日志"
 
-    # ==================== legacy 无前缀指令 ====================
-
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀群管指令正则匹配。"""
+
         try:
             if not event.get_group_id():
                 return None
-            # 全体禁言 / 全体解禁
+
             m = re.match(r"^(全体|全)(禁言|解禁|禁|解)$", message)
             if m:
                 token = m.group(2)
                 return await self.whole_ban(event, token in ("禁言", "禁"))
-            # 禁言@人 60 / 解禁@人
+
             m = re.match(r"^(禁言|解禁)([\s\S]*?)(?:\s+(\d+))?$", message)
             if m and self._at_targets(event):
                 action = m.group(1)
@@ -629,13 +607,13 @@ class AdminModule:
                 if action == "禁言":
                     return await self.mute(event, secs)
                 return await self.unmute(event)
-            # 踢出@人 / 黑踢@人
+
             m = re.match(r"^(踢出|黑踢)([\s\S]*?)$", message)
             if m and self._at_targets(event):
                 if m.group(1) == "黑踢":
                     return await self.black_kick(event)
                 return await self.kick(event)
-            # 上管@人 / 下管@人
+
             m = re.match(r"^(上管|下管)([\s\S]*?)$", message)
             if m and self._at_targets(event):
                 if m.group(1) == "上管":
@@ -645,16 +623,16 @@ class AdminModule:
                 return await self.ban_list(event)
             if message == "全解群员":
                 return await self.unban_all(event)
-            # 我要头衔
+
             if message.startswith("我要头衔"):
                 return await self.self_title(event, message[4:])
-            # 设置头衔
+
             if message.startswith("设置头衔"):
                 return await self.set_title(event, self._plain_text(event).replace("设置头衔", "").strip())
-            # 发公告
+
             if message.startswith("发公告"):
                 return await self.send_notice(event, self._plain_text(event).replace("发公告", "").strip())
-            # 群发
+
             if message.startswith("执行群发") or message.startswith("☆执行群发"):
                 m = _BROADCAST_RE.match(message)
                 content = m.group(1).strip() if m else ""
@@ -668,7 +646,7 @@ class AdminModule:
                 if m.group(1) == "新增":
                     return await self.broadcast_add(event, m.group(2))
                 return await self.broadcast_del(event, m.group(2))
-            # 事件开关
+
             m = re.match(r"^(开启|关闭)事件([\s\S]*)$", message)
             if m:
                 return await self.set_event(event, m.group(2).strip(), m.group(1) == "开启")
@@ -677,6 +655,6 @@ class AdminModule:
             if message in ("获取本群成员", "群成员列表"):
                 return await self.member_list(event)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"群管 legacy 异常: {e}")
             return None

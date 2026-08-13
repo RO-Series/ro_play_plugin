@@ -1,18 +1,3 @@
-"""音乐系统模块（MusicModule）。
-
-对应原 index.mjs 的音乐区（L11750-L12524）：点歌（L12039）、选歌（L12148）、
-我的收藏/收藏/取消收藏（L12253-L12391）、清空个人收藏（L12392）、播放收藏（L12401）。
-
-四音源 API（aiohttp GET，参数 quote）：
-- 汽水   https://api-v2.cenguigui.cn/api/qishui/?msg=
-- QQ     https://a.aa.cab/qq.music?msg=
-- 酷我   https://oiapi.net/api/Kuwo?msg=
-- 网易云 https://oiapi.net/api/Music_163?name=
-
-数据：BaiXuan/音乐系统/临时歌单/{QQ}.json、音乐收藏/{QQ}.json、点歌名字.json、
-选歌范围.json、使用音源.json。
-music_card_api 配置为 true 时改调 https://api.s01s.cn/API/music_ark/ 生成 JSON 卡片。
-"""
 from __future__ import annotations
 
 import json
@@ -35,14 +20,10 @@ API_URLS: dict[str, str] = {
 }
 MUSIC_ROOT = "BaiXuan/音乐系统"
 
-
 class MusicModule:
-    """音乐系统。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
-
-    # ==================== 工具 ====================
 
     async def _authorized(self, event: Any) -> bool:
         try:
@@ -54,17 +35,17 @@ class MusicModule:
             wj_time = int(data.get("授权时间", 0) or 0)
             wj_km = int(data.get("卡密时长", 0) or 0)
             return wj_time != 0 and wj_km != 0 and (int(time.time()) - wj_time) <= wj_km
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return False
 
     async def _fetch(self, url: str, timeout: int = 15) -> Any:
-        """aiohttp GET 并解析 JSON。"""
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
                     return await resp.json()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"音乐接口访问失败 {url}: {e}")
             return None
 
@@ -93,7 +74,7 @@ class MusicModule:
 
     @staticmethod
     def _extract(item: Any, 音源: str) -> dict:
-        """按音源提取 歌名/歌手/封面/链接/平台标识。"""
+
         item = item or {}
         if 音源 == "汽水":
             return {
@@ -134,7 +115,7 @@ class MusicModule:
         return {"歌名": "", "歌手": "", "封面": "", "链接": "", "类型": "163"}
 
     async def _source_of(self, event: Any, source: str = "") -> str:
-        """确定音源：参数 > 个人记录 > 配置默认。"""
+
         if source and source in API_URLS:
             return source
         uid = str(event.get_sender_id())
@@ -142,7 +123,7 @@ class MusicModule:
             saved = await self.star.store.read_key(f"{MUSIC_ROOT}/使用音源.json", uid, "")
             if saved and saved in API_URLS:
                 return saved
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"读取音源记录失败: {e}")
         default = str(self.star.config.get("music_source", "汽水") or "汽水")
         return default if default in API_URLS else "汽水"
@@ -150,11 +131,11 @@ class MusicModule:
     async def _save_source(self, event: Any, source: str) -> None:
         try:
             await self.star.store.write_key(f"{MUSIC_ROOT}/使用音源.json", str(event.get_sender_id()), source)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"保存音源失败: {e}")
 
     async def _music_reply(self, event: Any, info: dict, mode: str) -> Any:
-        """按模式返回：卡片（Music 段或第三方 JSON 卡片）/ 链接 / 语音。"""
+
         url = info.get("链接", "")
         if len(url) < 10:
             return "访问失败：接口返回异常，请联系开发者修复"
@@ -163,7 +144,7 @@ class MusicModule:
             return cq_record(url)
         if mode == "链接":
             return f"[CQ:image,url={封面}]\n歌名:{歌名}\n歌手:{歌手}\n音频链接:\n{url}"
-        # 卡片模式
+
         if self.star.config.get("music_card_api", False):
             try:
                 params = (
@@ -182,7 +163,7 @@ class MusicModule:
                     .replace(",", "&#44;")
                 )
                 return f"[CQ:json,data={data}]"
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"音乐卡片接口失败，回退 Music 段: {e}")
         try:
             return Comp.Music(
@@ -193,13 +174,11 @@ class MusicModule:
                 content=歌手,
                 image=封面,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             return cq_music(url, url, 歌名, 歌手, 封面)
 
-    # ==================== 指令方法 ====================
-
     async def search(self, event: Any, name: str = "", source: str = ""):
-        """点歌：/点歌 歌名（source 为空用默认音源）。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -229,12 +208,12 @@ class MusicModule:
             lines.append("══════════════")
             await self.star.store.write_json(f"{MUSIC_ROOT}/临时歌单/{uid}.json", {"音源": 音源, "data": 歌单})
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"点歌异常: {e}")
             return "点歌处理异常，请稍后再试"
 
     async def pick(self, event: Any, index: str = "", mode: str = "卡片"):
-        """选歌：/选歌 序号（模式：卡片/链接/语音）。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -259,12 +238,12 @@ class MusicModule:
                 return f"访问失败：{音源}接口返回异常，请联系开发者修复"
             info = self._extract(item if isinstance(item, dict) else (data if isinstance(data, dict) else {}), 音源)
             return await self._music_reply(event, info, mode)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"选歌异常: {e}")
             return "选歌处理异常，请稍后再试"
 
     async def favorite(self, event: Any, index: str = ""):
-        """收藏音乐：/收藏音乐 序号。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -293,12 +272,12 @@ class MusicModule:
             })
             await self.star.store.write_json(f"{MUSIC_ROOT}/音乐收藏/{uid}.json", 收藏)
             return f"已收藏改歌曲:\n{item.get('歌名', '')}----{item.get('歌手', '')}"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"收藏音乐异常: {e}")
             return "收藏音乐处理异常，请稍后再试"
 
     async def unfavorite(self, event: Any, index: str = ""):
-        """取消收藏：/取消收藏 序号（支持 a-b 范围）。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -325,12 +304,12 @@ class MusicModule:
                 lines.append(f"{起始 + i}.[{item.get('音源', '')}]{item.get('歌名', '')} --- {item.get('歌手', '')}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"取消收藏异常: {e}")
             return "取消收藏处理异常，请稍后再试"
 
     async def fav_list(self, event: Any):
-        """我的收藏 / 个人歌单。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -343,24 +322,24 @@ class MusicModule:
                 lines.append(f"{i + 1}.[{item.get('音源', '')}]{item.get('歌名', '')} --- {item.get('歌手', '')}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"我的收藏异常: {e}")
             return "我的收藏处理异常，请稍后再试"
 
     async def clear_fav(self, event: Any):
-        """清空个人收藏。"""
+
         try:
             if not await self._authorized(event):
                 return None
             uid = str(event.get_sender_id())
             await self.star.store.write_json(f"{MUSIC_ROOT}/音乐收藏/{uid}.json", [])
             return "好叭，这就把你的歌单给清空空！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"清空个人收藏异常: {e}")
             return "清空个人收藏处理异常，请稍后再试"
 
     async def play_fav(self, event: Any, index: str = ""):
-        """播放收藏：/播放收藏 序号（模式：卡片/链接/语音）。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -391,14 +370,12 @@ class MusicModule:
                 return f"访问失败：{音源}接口返回异常，请联系开发者修复"
             info = self._extract(item if isinstance(item, dict) else (data if isinstance(data, dict) else {}), 音源)
             return await self._music_reply(event, info, 方式)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"播放收藏异常: {e}")
             return "播放收藏处理异常，请稍后再试"
 
-    # ==================== legacy ====================
-
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀指令：[酷我|汽水|网易云|QQ]点歌 / 选歌 / 收藏 / 播放收藏 / 音乐菜单。"""
+
         try:
             if message in ("音乐功能", "音乐系统", "音乐菜单"):
                 if not await self._authorized(event):
@@ -439,6 +416,6 @@ class MusicModule:
             if m:
                 return await self.play_fav(event, f"{m.group(1) if m.group(1) else '卡片'} {m.group(2)}")
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"音乐 legacy 异常: {e}")
             return None

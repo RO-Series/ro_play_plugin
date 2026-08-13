@@ -1,10 +1,3 @@
-"""通知 / 请求事件处理。
-
-对应原 index.mjs 的 handleNotice（L17894）与 handleRequest（L18287）。
-AstrBot 中 OneBot 的 notice/request 事件以 EventMessageType.ALL 消息事件到达，
-原始载荷在 event.message_obj.raw_message（含 post_type / notice_type 等字段）。
-本模块只做分发，具体业务（欢迎词、验证码、审核、拉黑）委托给 lib/modules 对应模块。
-"""
 from __future__ import annotations
 
 import time
@@ -12,15 +5,13 @@ from typing import Any
 
 from astrbot.api import logger
 
-
 class NoticeHandler:
-    """通知 / 请求事件分发器。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
 
     async def dispatch(self, event: Any, raw: dict) -> None:
-        """分发 OneBot notice 事件。"""
+
         ntype = raw.get("notice_type")
         sub = raw.get("sub_type")
         try:
@@ -34,47 +25,43 @@ class NoticeHandler:
                 await self._on_poke(event, raw)
             elif ntype == "friend_add":
                 logger.info(f"新好友: {raw.get('user_id')}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"notice 事件处理异常 ({ntype}): {e}")
 
     async def dispatch_request(self, event: Any, raw: dict) -> None:
-        """分发 OneBot request 事件。"""
+
         try:
             if raw.get("request_type") == "group":
                 if raw.get("sub_type") == "invite":
                     await self._on_group_invite(event, raw)
                 else:
                     await self._on_group_add_request(event, raw)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"request 事件处理异常: {e}")
-
-    # ---------- 入群 ----------
 
     async def _on_group_increase(self, event: Any, raw: dict) -> None:
         gid = str(raw.get("group_id"))
         uid = str(raw.get("user_id"))
         self_id = str(raw.get("self_id"))
         if uid == self_id:
-            return  # 机器人自己入群
-        # 黑白名单踢人
+            return
+
         if await self.star.group_event_enabled(gid, "blacklist"):
             mod = self.star.modules.get("blacklist")
             if mod and await mod.is_blacklisted(gid, uid):
                 await self.star.api.call("set_group_kick", group_id=gid, user_id=uid)
                 return
-        # 入群验证码
+
         if await self.star.group_event_enabled(gid, "join_verify"):
             mod = self.star.modules.get("join_review")
             if mod:
                 await mod.on_group_increase(event, raw)
                 return
-        # 入群欢迎
+
         if await self.star.group_event_enabled(gid, "welcome"):
             mod = self.star.modules.get("join_review")
             if mod:
                 await mod.send_welcome(event, raw)
-
-    # ---------- 退群 ----------
 
     async def _on_group_decrease(self, event: Any, raw: dict) -> None:
         gid = str(raw.get("group_id"))
@@ -82,18 +69,16 @@ class NoticeHandler:
         sub = raw.get("sub_type", "")
         if uid == str(raw.get("self_id")):
             return
-        # 退群拉黑
+
         if sub in ("leave", "kick") and await self.star.group_event_enabled(gid, "leave_blacklist"):
             mod = self.star.modules.get("blacklist")
             if mod:
                 await mod.add_blacklist(gid, uid)
-        # 退群通知
+
         if await self.star.group_event_enabled(gid, "leave_notice"):
             mod = self.star.modules.get("join_review")
             if mod:
                 await mod.send_leave_notice(event, raw)
-
-    # ---------- 禁言 ----------
 
     async def _on_group_ban(self, event: Any, raw: dict) -> None:
         gid = str(raw.get("group_id"))
@@ -107,8 +92,6 @@ class NoticeHandler:
         else:
             text = f"用户 {uid} 被解除禁言（操作者 {operator}）"
         await self.star.sender.send_to_group(gid, text)
-
-    # ---------- 戳一戳 ----------
 
     async def _on_poke(self, event: Any, raw: dict) -> None:
         if not self.star.config.get("poke_reply_enabled", True):
@@ -133,10 +116,8 @@ class NoticeHandler:
             data[slot] = {"day": day, "count": 0}
             await self.star.store.write_json(key, data)
 
-    # ---------- 加群申请 / 邀请 ----------
-
     async def _on_group_add_request(self, event: Any, raw: dict) -> None:
-        """入群申请审核（转发给 join_review 模块）。"""
+
         gid = str(raw.get("group_id"))
         if not await self.star.group_event_enabled(gid, "join_review"):
             return
@@ -145,7 +126,7 @@ class NoticeHandler:
             await mod.on_group_add_request(event, raw)
 
     async def _on_group_invite(self, event: Any, raw: dict) -> None:
-        """受邀入群：按全局开关自动同意或拒绝。"""
+
         accept = await self.star.global_event_enabled("受邀入群同意")
         await self.star.api.call(
             "set_group_add_request",

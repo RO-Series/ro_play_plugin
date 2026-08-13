@@ -1,29 +1,3 @@
-"""工具集模块（ToolsModule）。
-
-对应原 index.mjs 的以下功能：
-- L12542「发病文学[对象名]」、L12564「(cs)?搜饰品[关键词]」、
-  L12670「查(MC|mc|我的世界)服务器[IP]」、L12725「(三角洲|sjz)(密码|每日密码)」、
-  L12845「EPIC免费游戏」、L13772「运行状态」、L14860「重启服务」、
-  L14915「获取声聊角色列表」、L14948「发送(AI|ai)声聊[内容]」、
-  L14970「查(群员|群友|用户|群聊)[QQ]」、L17110「赞我/点赞」、
-  L17124「拍我/截我」、L17138「撤回」、L17152「图转链接」。
-- 被动：L17496 视频解析（哔哩哔哩/抖音/小红书/快手）——转发给 lib/video 解析，
-  成功先发「标题+作者+封面」再发视频段；图集/实况图发多图；失败仅记日志。
-
-数据：
-- 发病文学模板：star.data_path/templates/text/fake_chat_lines.json
-- 三角洲密码缓存：BaiXuan/扩展功能/三角洲密码/cache_{日}.json（300s）
-- 点赞记录：BaiXuan/扩展功能/点赞记录/{日}.json
-- AI 声聊：BaiXuan/扩展功能/AI声聊/{群号}/模型列表.json、正在使用.json
-
-外部 API：
-- 三角洲密码 https://www.guoping123.com/hykb_tools/sjz/mrmm/index.php?immgj=0
-- EPIC https://uapis.cn/api/v1/game/epic-free
-- 搜饰品 https://sdt-api.ok-skins.com/user/skin/v1/auto-completion?q=...
-- MC https://uapis.cn/api/v1/game/minecraft/serverstatus?server=...
-
-命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
-"""
 from __future__ import annotations
 
 import inspect
@@ -44,15 +18,11 @@ _LIKE_RECORD_REL = "BaiXuan/扩展功能/点赞记录"
 _AI_VOICE_REL = "BaiXuan/扩展功能/AI声聊"
 _KNOWN_MAPS = ["零号大坝", "长弓溪谷", "巴克什", "航天基地", "潮汐监狱"]
 
-
 class ToolsModule:
-    """工具集：娱乐查询 / 系统状态 / 互动与视频解析。"""
 
     def __init__(self, star) -> None:
         self.star = star
         self.store = star.store
-
-    # ==================== 网络工具 ====================
 
     async def _fetch_text(self, url: str, headers: Optional[dict] = None) -> Optional[str]:
         try:
@@ -63,7 +33,7 @@ class ToolsModule:
                         logger.warning(f"请求失败 HTTP {resp.status}: {url}")
                         return None
                     return await resp.text()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"请求异常 {url}: {e}")
             return None
 
@@ -76,7 +46,7 @@ class ToolsModule:
                         logger.warning(f"请求失败 HTTP {resp.status}: {url}")
                         return None
                     return await resp.json(content_type=None)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"请求异常 {url}: {e}")
             return None
 
@@ -97,10 +67,8 @@ class ToolsModule:
         m, s = divmod(rem, 60)
         return f"{d}天{h}时{m}分{s}秒"
 
-    # ==================== 指令方法（main.py 调用） ====================
-
     async def fabing(self, event, target: str = "") -> Any:
-        """发病文学：/发病文学 对象名（原 L12542）。"""
+
         try:
             target = (target or "").strip()
             if not target:
@@ -110,12 +78,12 @@ class ToolsModule:
                 return "发病文学模板为空"
             line = random.choice(lines)
             return str(line).replace("[name]", target)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发病文学失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def delta_password(self, event) -> Any:
-        """三角洲行动每日密码（原 L12725，300s 缓存）。"""
+
         try:
             today = time.strftime("%Y-%m-%d")
             cache_rel = f"{_DELTA_CACHE_REL}/cache_{today}.json"
@@ -175,12 +143,12 @@ class ToolsModule:
             if used_cache:
                 lines.append("[数据来自缓存]")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"三角洲密码失败: {e}")
             return f"查询出错: {type(e).__name__}: {e}"
 
     async def epic_games(self, event) -> Any:
-        """EPIC 免费游戏（原 L12845）。"""
+
         try:
             res = await self._fetch_json("https://uapis.cn/api/v1/game/epic-free")
             games = (res or {}).get("data") or [] if isinstance(res, dict) else []
@@ -208,12 +176,12 @@ class ToolsModule:
                 nodes.append(self.star.sender.build_node("[EPIC免费游戏]", event.get_sender_id(), text))
             await self.star.sender.send_forward(event, nodes)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"EPIC 免费游戏失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def search_skin(self, event, keyword: str = "", cs: bool = False) -> Any:
-        """搜饰品：/搜饰品 关键词 或 /cs搜饰品 关键词（原 L12564）。"""
+
         try:
             keyword = (keyword or "").strip()
             if not keyword:
@@ -258,12 +226,12 @@ class ToolsModule:
                 lines.append(f"【{i + 1}】{name}\n市场名:{market}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"搜饰品失败: {e}")
             return f"搜索失败：{type(e).__name__}: {e}"
 
     async def mc_server(self, event, address: str = "") -> Any:
-        """查MC服务器：/查MC服务器 IP（原 L12670）。"""
+
         try:
             address = (address or "").strip()
             if not address:
@@ -296,7 +264,7 @@ class ToolsModule:
                 await self.star.sender.send_forward(event, nodes)
                 return None
             return text
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"查MC服务器失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
@@ -326,7 +294,7 @@ class ToolsModule:
         return ("status" if is_status else "players"), rows
 
     async def img_to_url(self, event) -> Any:
-        """图转链接（提取消息与引用消息内的图片/视频 URL，原 L17152）。"""
+
         try:
             images: list = []
             videos: list = []
@@ -352,14 +320,14 @@ class ToolsModule:
                             _add_unique(videos, v)
                 elif name == "reply":
                     reply_id = str(getattr(seg, "id", "") or "")
-            # CQ 码兜底
+
             for m in re.finditer(r"\[CQ:image,file=([^,\]]+)", event.message_str or ""):
                 if _looks_link(m.group(1)):
                     _add_unique(images, m.group(1))
             for m in re.finditer(r"\[CQ:video,file=([^,\]]+)", event.message_str or ""):
                 if _looks_link(m.group(1)):
                     _add_unique(videos, m.group(1))
-            # 引用消息
+
             if reply_id:
                 try:
                     r = await self.star.api.call_result("get_msg", message_id=reply_id)
@@ -375,7 +343,7 @@ class ToolsModule:
                             for v in (seg.get("data", {}).get("url"), seg.get("data", {}).get("file")):
                                 if _looks_link(v):
                                     _add_unique(videos, v)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.warning(f"读取引用消息失败: {e}")
             if not images and not videos:
                 return "未检测到图片或视频链接～"
@@ -387,12 +355,12 @@ class ToolsModule:
                 nodes.append(self.star.sender.build_node(f"[第{i}个视频]", event.get_sender_id(), f"视频链接:\n{u}"))
             await self.star.sender.send_forward(event, nodes)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"图转链接失败: {e}")
             return f"图转链接处理失败: {type(e).__name__}: {e}"
 
     async def status(self, event) -> Any:
-        """运行状态（原 L13772，渲染 status.html，失败回退文本）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return None
@@ -402,13 +370,13 @@ class ToolsModule:
             try:
                 friends = await self.star.api.get_friend_list()
                 friend_count = len(friends or [])
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"获取好友列表失败: {e}")
                 friend_count = 0
             try:
                 groups = await self.star.api.get_group_list()
                 group_count = len(groups or [])
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"获取群聊列表失败: {e}")
                 group_count = 0
             cpu_pct, mem_pct, cpu_count, total_gb, disk_used_gb, disk_total_gb, disk_free_gb, disk_pct = self._system_metrics()
@@ -433,7 +401,7 @@ class ToolsModule:
             try:
                 img_url = await self.star.render.render_html("status.html", data)
                 return event.image_result(img_url)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"运行状态渲染失败，回退文本: {e}")
                 lines = [
                     "══════════════",
@@ -454,12 +422,12 @@ class ToolsModule:
                     "══════════════",
                 ]
                 return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"运行状态失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     def _system_metrics(self) -> tuple:
-        """psutil 可用时取真实指标，否则返回 0 占位。"""
+
         cpu_pct = 0.0
         mem_pct = 0.0
         cpu_count = os.cpu_count() or 1
@@ -478,12 +446,12 @@ class ToolsModule:
             disk_used_gb = round(float(du.used) / 1024 ** 3, 2)
             disk_free_gb = round(float(du.free) / 1024 ** 3, 2)
             disk_pct = round(float(du.percent or 0), 2)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"psutil 不可用，使用占位指标: {e}")
         return cpu_pct, mem_pct, cpu_count, total_gb, disk_used_gb, disk_total_gb, disk_free_gb, disk_pct
 
     def _process_data(self) -> list:
-        """psutil 不可用时返回空列表（status.html 兜底）。"""
+
         try:
             import psutil
 
@@ -499,16 +467,16 @@ class ToolsModule:
                         "memoryMB": f"{mem / 1024 / 1024:.2f}",
                         "cpuPercent": f"{float(pinfo.get('cpu_percent') or 0):.1f}",
                     })
-                except Exception:  # noqa: BLE001
+                except Exception:
                     continue
             rows.sort(key=lambda r: r["memory"], reverse=True)
             return rows[:20]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"进程数据不可用: {e}")
             return []
 
     async def like_me(self, event) -> Any:
-        """赞我：/赞我（原 L17110，调 send_like）。"""
+
         try:
             uid = str(event.get_sender_id())
             if await self.star.global_event_enabled("自动点赞"):
@@ -520,39 +488,37 @@ class ToolsModule:
             else:
                 await self.star.api.call("send_like", user_id=uid, times=20)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"赞我失败: {e}")
             return None
 
     async def poke_me(self, event) -> Any:
-        """拍我：/拍我（原 L17124，调 friend_poke）。"""
+
         try:
             uid = str(event.get_sender_id())
             await self.star.api.call("friend_poke", user_id=uid)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"拍我失败: {e}")
             return None
 
     async def restart(self, event) -> Any:
-        """重启服务：/重启服务（主人，原 L14860）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
             await self.star.api.call("set_restart")
             return "已发送重启请求～请等待！\n预计10秒内会回复，如没有则需手动！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"重启服务失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
-    # ==================== 被动视频解析 ====================
-
     async def video_scan(self, event) -> None:
-        """被动：视频/图集解析（原 L17496，调 lib.video）。"""
+
         try:
             try:
                 from lib.video import match_platform, parse
-            except ImportError as e:  # noqa: BLE001
+            except ImportError as e:
                 logger.warning(f"lib.video 未就绪，跳过解析: {e}")
                 return
             text = (event.message_str or "").strip()
@@ -584,24 +550,22 @@ class ToolsModule:
                 parts.append(f"作者:{author}")
             if parts:
                 await self.star.sender.send_reply(event, "\n".join(parts))
-            # 图集 / 实况图：多图
+
             album = info.get("images") or info.get("图片") or info.get("图集") or []
             if isinstance(album, list) and album:
                 for u in album[:9]:
                     if str(u).startswith(("http://", "https://")):
                         await self.star.sender.send_reply(event, f"[CQ:image,file={u}]")
                 return
-            # 视频段
+
             video_url = info.get("视频链接") or info.get("url") or info.get("video_url") or ""
             if video_url and str(video_url).startswith(("http://", "https://")):
                 await event.send(event.chain_result([Comp.Video.fromURL(str(video_url))]))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"视频解析异常: {e}")
 
-    # ==================== 无前缀 legacy ====================
-
     async def legacy(self, event, message: str) -> Any:
-        """正则匹配无前缀工具指令（原 L12542~L17152 等）。"""
+
         try:
             m = re.match(r"^发病文学([\s\S]+)$", message)
             if m:
@@ -636,12 +600,12 @@ class ToolsModule:
             m = re.match(r"^发送(.*?)(AI|ai)声聊([\s\S]*)$", message)
             if m:
                 return await self._send_ai_voice(event, m.group(1), m.group(3))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"工具 legacy 异常: {e}")
         return None
 
     async def _query_info(self, event, kind: str, target: str) -> Any:
-        """查群员/群友/用户/群聊（原 L14970）。"""
+
         gid = str(event.get_group_id() or "")
         if not gid:
             return None
@@ -712,7 +676,7 @@ class ToolsModule:
         return "\n".join(lines)
 
     async def _withdraw(self, event) -> Any:
-        """撤回引用消息（原 L17138）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return None
@@ -727,12 +691,12 @@ class ToolsModule:
             if not ok:
                 logger.warning(f"撤回消息失败: {reply_id}")
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"撤回失败: {e}")
             return None
 
     async def _ai_characters(self, event) -> Any:
-        """获取声聊角色列表（原 L14915）。"""
+
         try:
             gid = str(event.get_group_id() or "")
             if not gid:
@@ -759,12 +723,12 @@ class ToolsModule:
                         )
                 lines.append("")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"获取声聊角色列表失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def _send_ai_voice(self, event, model_arg: str, content_arg: str) -> Any:
-        """发送 AI 声聊（原 L14948）。"""
+
         try:
             gid = str(event.get_group_id() or "")
             if not gid:
@@ -780,6 +744,6 @@ class ToolsModule:
                 "send_group_ai_record", character=str(model), group_id=gid, text=content
             )
             return None if ok else "AI 声聊发送失败～"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发送 AI 声聊失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"

@@ -1,15 +1,3 @@
-"""漂流瓶模块（DriftBottleModule）。
-
-对应原 index.mjs 的 handleDriftBottleCommands（L1344-L1690）。
-
-数据（BaiXuan/娱乐系统/漂流瓶/）：
-- 总数据.json（总数量）
-- 瓶子数据/{ID}.json（扔的人/瓶子内容/图片数据/扔出时间）
-- 赞踩/{ID}.json（赞/踩）、赞踩/正在进行.json、赞踩/投票状态/{QQ}.json
-- 被打捞次数.json、删除的.json（状态：正常/异常，键「总删除」）
-
-内容限制：11 行 / 500 字 / 5 张图；图片经 event.get_messages() 提取 Comp.Image URL。
-"""
 from __future__ import annotations
 
 import re
@@ -23,10 +11,8 @@ from lib.cqcode import cq_image
 
 BOTTLE_ROOT = "BaiXuan/娱乐系统/漂流瓶"
 
-
 def _now() -> int:
     return int(time.time())
-
 
 def _time_a(fmt: str, ts: int | None = None) -> str:
     t = time.localtime(_now() if ts is None else int(ts))
@@ -39,20 +25,16 @@ def _time_a(fmt: str, ts: int | None = None) -> str:
         out = out.replace(k, v)
     return out
 
-
 class DriftBottleModule:
-    """漂流瓶。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
-
-    # ==================== 工具 ====================
 
     async def _gate(self, event: Any) -> bool:
         try:
             if not await self.star.deep_entertainment_enabled():
                 return False
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         try:
             if self.star.config.get("bypass_license", False):
@@ -63,7 +45,7 @@ class DriftBottleModule:
             wj_time = int(data.get("授权时间", 0) or 0)
             wj_km = int(data.get("卡密时长", 0) or 0)
             return wj_time != 0 and wj_km != 0 and (_now() - wj_time) <= wj_km
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return False
 
@@ -75,7 +57,7 @@ class DriftBottleModule:
                     u = str(getattr(seg, "url", "") or getattr(seg, "file", "") or "")
                     if u:
                         urls.append(u)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return urls
 
@@ -85,12 +67,12 @@ class DriftBottleModule:
             for seg in event.get_messages() or []:
                 if isinstance(seg, Comp.Plain):
                     parts.append(str(getattr(seg, "text", "")))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return "".join(parts)
 
     def _bottle_text(self, 数据: dict) -> str:
-        """拼装瓶子正文（文本 + 图片）。"""
+
         文本 = str(数据.get("瓶子内容", "") or "")
         图片数据 = 数据.get("图片数据", []) or []
         msg = 文本
@@ -102,10 +84,8 @@ class DriftBottleModule:
     async def _count(self) -> int:
         return int(await self.star.store.read_key(f"{BOTTLE_ROOT}/总数据.json", "总数量", 0) or 0)
 
-    # ==================== 指令方法 ====================
-
     async def menu(self, event: Any):
-        """漂流瓶菜单。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -119,12 +99,12 @@ class DriftBottleModule:
                 "赞此瓶子/踩此瓶子\n"
                 "══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"漂流瓶菜单异常: {e}")
             return "漂流瓶菜单执行出错，请查看日志"
 
     async def throw_bottle(self, event: Any, content: str = ""):
-        """抛瓶子：/抛瓶子 内容（可附图片）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -147,12 +127,12 @@ class DriftBottleModule:
             await self.star.store.write_key(f"{BOTTLE_ROOT}/总数据.json", "总数量", new_id)
             await self.star.store.write_json(f"{BOTTLE_ROOT}/瓶子数据/{new_id}.json", 数据)
             return f"抛成功啦～！\n你的瓶子ID是:{new_id}"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"抛瓶子异常: {e}")
             return "抛瓶子执行出错，请查看日志"
 
     async def pick_bottle(self, event: Any):
-        """捞瓶子（随机捞取一个未被删除的瓶子）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -189,12 +169,12 @@ class DriftBottleModule:
                     f"[被捞]:{被捞次数 + 1}次\n[赞]:{赞}      [踩]:{踩}\n══════════════"
                 )
             return "多次打捞都找不到～(∩ᵒ̴̶̷̤⌔ᵒ̴̶̷̤∩)"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"捞瓶子异常: {e}")
             return "捞瓶子执行出错，请查看日志"
 
     async def my_bottles(self, event: Any):
-        """我的瓶子。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -221,12 +201,12 @@ class DriftBottleModule:
             head = f"你共有「{有效数量}」个瓶子\n══════════════"
             tail = "══════════════"
             return head + "\n" + "\n".join(lines) + tail
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"我的瓶子异常: {e}")
             return "我的瓶子执行出错，请查看日志"
 
     async def query_bottle(self, event: Any, bottle_id: str = ""):
-        """查瓶子：/查瓶子 ID（本人或管理员）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -243,7 +223,7 @@ class DriftBottleModule:
             if not 权限:
                 try:
                     权限 = await self.star.perm.check_admin(event)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     权限 = False
             if not 权限:
                 return "这个瓶子好像不是你的吧～？"
@@ -261,12 +241,12 @@ class DriftBottleModule:
                 f"[来自]:{上传者}\n[时间]:{扔出时间}\n-----------------\n"
                 f"[次数]:{被捞次数}\n══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"查瓶子异常: {e}")
             return "查瓶子执行出错，请查看日志"
 
     async def delete_bottle(self, event: Any, bottle_id: str = ""):
-        """删瓶子：/删瓶子 ID（本人或管理员）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -283,7 +263,7 @@ class DriftBottleModule:
             if not 权限:
                 try:
                     权限 = await self.star.perm.check_admin(event)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     权限 = False
             if not 权限:
                 return "这个瓶子好像不是你的吧～？"
@@ -294,12 +274,12 @@ class DriftBottleModule:
             await self.star.store.write_key(f"{BOTTLE_ROOT}/删除的.json", "总删除", 总删除 + 1)
             await self.star.store.write_key(f"{BOTTLE_ROOT}/删除的.json", str(bid), "异常")
             return f"耗的，这就把【{bid}】的瓶子给抹除了！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"删瓶子异常: {e}")
             return "删瓶子执行出错，请查看日志"
 
     async def _vote(self, event: Any, 赞踩: str):
-        """赞 / 踩当前正在捞取的瓶子。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -314,22 +294,20 @@ class DriftBottleModule:
             await self.star.store.write_key(f"{BOTTLE_ROOT}/赞踩/{mub}.json", 赞踩, 值 + 1)
             await self.star.store.write_key(f"{BOTTLE_ROOT}/赞踩/投票状态/{uid}.json", mub, "已")
             return f"已对瓶子【{mub}】进行投票啦～！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"瓶子投票异常: {e}")
             return "瓶子投票执行出错，请查看日志"
 
     async def like_bottle(self, event: Any, bottle_id: str = ""):
-        """赞此瓶子。"""
+
         return await self._vote(event, "赞")
 
     async def dislike_bottle(self, event: Any, bottle_id: str = ""):
-        """踩此瓶子。"""
+
         return await self._vote(event, "踩")
 
-    # ==================== legacy ====================
-
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀指令：漂流瓶全套指令。"""
+
         try:
             if message == "漂流瓶":
                 return await self.menu(event)
@@ -353,10 +331,9 @@ class DriftBottleModule:
             if message == "踩此瓶子":
                 return await self.dislike_bottle(event)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"漂流瓶 legacy 异常: {e}")
             return None
-
 
 def random_bottle(a: int, b: int) -> int:
     import random

@@ -1,17 +1,3 @@
-"""伪造聊天模块（FakeChatModule）。
-
-对应原 index.mjs 的以下功能：
-- L13198「(开启|关闭)伪造声明」。
-- L13223「伪造聊天[JSON]」（含独立 JSON 数组直发）：
-  解析 JSON 数组（text/face/mface/image/video 段 + CQ 码 + 嵌套 forward），
-  声明开启时插入声明节点，媒体按「图片 25s / 视频 35s / 整批 600s」超时预算
-  用 aiohttp 下载到 star.data_path 下的临时目录，最后合并转发展送。
-- 表情点赞回执（set_msg_emoji_like）在 AstrBot 平台不可用时安全跳过。
-
-数据：BaiXuan/伪造聊天/{群号}/声明.json（{"开关": "开启"}）。
-
-命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
-"""
 from __future__ import annotations
 
 import json
@@ -32,15 +18,11 @@ _CLASSIC_FACE_ID_MAX = 103
 _TMP_REL = "临时目录"
 _DECLARE_REL = "BaiXuan/伪造聊天"
 
-
 class FakeChatModule:
-    """伪造聊天：解析 JSON 构造合并转发。"""
 
     def __init__(self, star) -> None:
         self.star = star
         self.store = star.store
-
-    # ==================== 工具 ====================
 
     @staticmethod
     def _is_http(url: Any) -> bool:
@@ -57,11 +39,11 @@ class FakeChatModule:
             from urllib.parse import urlparse
             ext = Path(urlparse(url).path).suffix
             return ext or fallback
-        except Exception:  # noqa: BLE001
+        except Exception:
             return fallback
 
     async def _download_media(self, url: str, kind: str, batch_start: float, batch_budget: float) -> Optional[Path]:
-        """按超时预算下载媒体，成功返回本地路径。"""
+
         remaining = batch_budget - (time.time() - batch_start)
         if remaining <= 0:
             return None
@@ -83,18 +65,18 @@ class FakeChatModule:
             async with aiofiles.open(p, "wb") as f:
                 await f.write(data)
             return p
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"伪造聊天媒体下载失败 {url}: {e}")
             return None
 
     def _seg_text(self, value: Any) -> list:
-        """text 段：普通文本或含 CQ 码时经 cq_to_chain 拆分。"""
+
         text = str(value or "")
         if "[CQ:" in text:
             try:
                 from lib.sender import cq_to_chain
                 return cq_to_chain(text) or [Comp.Plain(text)]
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"CQ 文本解析失败: {e}")
         return [Comp.Plain(text)]
 
@@ -107,7 +89,7 @@ class FakeChatModule:
         return Comp.Face(id=id_str)
 
     async def _build_node(self, item: Any, index: int, batch_start: float, batch_budget: float) -> Any:
-        """把单条 JSON 消息解析为 {name, qq, content: chain, extra: [nodes]}。"""
+
         if not isinstance(item, dict):
             return f"第 {index + 1} 条消息格式无效"
         name = str(item.get("name") or "").strip()
@@ -192,7 +174,7 @@ class FakeChatModule:
         return f"第 {index + 1} 条第 {seg_index + 1} 段：须为有效的 http(s) 链接或本地路径"
 
     async def _seg_forward(self, value: Any, batch_start: float, batch_budget: float) -> Any:
-        """嵌套 forward：展开为额外节点（content 内联或 get_forward_msg 拉取）。"""
+
         nodes: list = []
         if not isinstance(value, dict):
             return nodes
@@ -218,7 +200,7 @@ class FakeChatModule:
                     if isinstance(built, str):
                         continue
                     nodes.append(self.star.sender.build_node(built["name"], built["qq"], built["content"]))
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"get_forward_msg 失败: {e}")
         return nodes
 
@@ -235,7 +217,7 @@ class FakeChatModule:
 
     @staticmethod
     def _ob_node_to_item(node: Any) -> Optional[dict]:
-        """把 OneBot node 消息转为伪造聊天条目格式。"""
+
         if not isinstance(node, dict):
             return None
         if node.get("type") == "node":
@@ -270,10 +252,8 @@ class FakeChatModule:
             return None
         return {"name": name, "qq": uin, "data": segs}
 
-    # ==================== 指令方法（main.py 调用） ====================
-
     async def fake(self, event, payload: str = "") -> Any:
-        """伪造聊天：/伪造聊天 JSON数组（原 L13223）。"""
+
         try:
             gid = str(event.get_group_id() or "")
             if not gid:
@@ -310,12 +290,12 @@ class FakeChatModule:
             if not ok:
                 return "合并转发展送失败～"
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"伪造聊天失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     def _extract_payload(self, event, body: str) -> str:
-        """尝试从事件原文中提取「伪造聊天」后的 JSON。"""
+
         for src in (body, event.message_str or "", getattr(getattr(event, "message_obj", None), "raw_message", "") or ""):
             m = re.match(r"^伪造聊天([\s\S]*)$", str(src))
             if m:
@@ -370,10 +350,8 @@ class FakeChatModule:
             "══════════════"
         )
 
-    # ==================== 无前缀 legacy ====================
-
     async def legacy(self, event, message: str) -> Any:
-        """正则匹配无前缀伪造聊天指令（原 L13198/L13223）。"""
+
         try:
             gid = str(event.get_group_id() or "")
             if not gid:
@@ -395,7 +373,7 @@ class FakeChatModule:
             m = re.match(r"^伪造聊天([\s\S]*)$", message)
             if m:
                 return await self.fake(event, message)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"伪造聊天 legacy 异常: {e}")
         return None
 

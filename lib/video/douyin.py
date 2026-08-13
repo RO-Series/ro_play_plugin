@@ -1,12 +1,3 @@
-"""抖音视频解析
-
-算法保持与 JS 原版一致：提取链接 -> v.douyin.com 短链先解重定向得到真实链接 ->
-提取视频 ID -> 依次请求 iesdouyin.com / douyin.com 的 share 页 ->
-解析页面内嵌状态 RENDER_DATA（URI 编码 JSON）或 window._ROUTER_DATA 配平 JSON ->
-按 bitRateList / play_addr / playApi 提取最高画质直链（playwm 换 play、v26-web 换
-v26-luna 域名）-> 统一转换为 {"title","author","cover","url","type","images","music"}。
-页面编码按 utf-8 解码，出错回退 gbk。
-"""
 from __future__ import annotations
 
 import json
@@ -41,9 +32,8 @@ _ID_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^(\d+)$"),
 )
 
-
 def _extract_douyin_url(text: str) -> str:
-    """从文本中提取抖音链接（对应原 extractDouyinUrl）。"""
+
     short_match = re.search(r"https?://v\.douyin\.com/[\w-]+", text, re.IGNORECASE)
     if short_match:
         return short_match.group(0).strip()
@@ -55,28 +45,24 @@ def _extract_douyin_url(text: str) -> str:
         return _clean_url_tail(any_match.group(0).strip())
     return (text or "").strip()
 
-
 def _extract_id(url: str) -> str | None:
-    """从 URL 中提取作品 ID（对应原 extractId）。"""
+
     for pattern in _ID_PATTERNS:
         matched = pattern.search(url)
         if matched:
             return matched.group(1)
     return None
 
-
 def _is_note_url(url: str) -> bool:
-    """判断是否为图文笔记链接。"""
+
     return re.search(r"/note/|share/note", url, re.IGNORECASE) is not None
 
-
 def _is_slides_url(url: str) -> bool:
-    """判断是否为图文幻灯片链接。"""
+
     return re.search(r"/slides/|share/slides", url, re.IGNORECASE) is not None
 
-
 def _build_share_fetch_urls(resolved_url: str, vid: str) -> list[str]:
-    """构造候选抓取页面 URL（对应原 buildShareFetchUrls）。"""
+
     urls: list[str] = []
     if _is_note_url(resolved_url):
         urls.append(f"https://www.iesdouyin.com/share/note/{vid}/")
@@ -94,18 +80,16 @@ def _build_share_fetch_urls(resolved_url: str, vid: str) -> list[str]:
             result.append(item)
     return result
 
-
 def _is_blocked_html(html: str) -> bool:
-    """判断是否命中风控/空页面（对应原 isBlockedHtml）。"""
+
     if "waf-js" in html and len(html) < 10000:
         return True
     if len(html) < 3000:
         return True
     return False
 
-
 def _pick_best_play_url(candidates: list[str]) -> str | None:
-    """优先 v3-web，其次 v26-web（替换为 v26-luna 域名），否则取第一个（对应原 pickBestPlayUrl）。"""
+
     if not candidates:
         return None
     v26_link: str | None = None
@@ -118,9 +102,8 @@ def _pick_best_play_url(candidates: list[str]) -> str | None:
         return re.sub(r"://([^/]+)", "://v26-luna.douyinvod.com", v26_link, count=1)
     return candidates[0]
 
-
 def _extract_live_video_url(video_info: Any) -> str | None:
-    """从图文项内嵌视频信息中提取实况视频直链（对应原 extractLiveVideoUrl）。"""
+
     live_url: str | None = None
     if isinstance(video_info, dict):
         play_addr = video_info.get("playAddr")
@@ -151,9 +134,8 @@ def _extract_live_video_url(video_info: Any) -> str | None:
         return live_url.replace("playwm", "play")
     return None
 
-
 def _extract_highest_quality_video(detail: dict) -> tuple[str | None, list[str]]:
-    """提取最高画质直链及备用列表（对应原 extractHighestQualityVideo）。"""
+
     url: str | None = None
     backup: list[str] = []
     video = detail.get("video")
@@ -229,9 +211,8 @@ def _extract_highest_quality_video(detail: dict) -> tuple[str | None, list[str]]
         url = url.replace("playwm", "play")
     return url, backup
 
-
 def _extract_cover(detail: dict) -> str:
-    """提取封面图（对应原 extractCover）。"""
+
     video = detail.get("video")
     video = video if isinstance(video, dict) else {}
     cover = ""
@@ -285,9 +266,8 @@ def _extract_cover(detail: dict) -> str:
                 cover = url_list[0]
     return cover
 
-
 def _build_music_info(detail: dict) -> dict:
-    """构造统一 music 结构（对应原 formatData 中的 music 字段）。"""
+
     music = detail.get("music")
     music = music if isinstance(music, dict) else {}
     info: dict = {
@@ -314,9 +294,8 @@ def _build_music_info(detail: dict) -> dict:
             info["cover"] = url_list[0]
     return info
 
-
 def _format_data(detail: dict) -> dict:
-    """将页面内嵌 detail 转换为统一输出结构（对应原 formatData）。"""
+
     author_info = detail.get("authorInfo")
     author = detail.get("author")
     author_info = author_info if isinstance(author_info, dict) else {}
@@ -377,9 +356,8 @@ def _format_data(detail: dict) -> dict:
         "music": music_info,
     }
 
-
 def _extract_json_from_html(html: str) -> dict | None:
-    """解析页面内嵌状态：优先 RENDER_DATA，其次 window._ROUTER_DATA（对应原 extractJsonFromHtml）。"""
+
     pos = html.find(_RENDER_START)
     if pos >= 0:
         chunk = html[pos + len(_RENDER_START):]
@@ -394,7 +372,7 @@ def _extract_json_from_html(html: str) -> dict | None:
                         video_detail = app.get("videoDetail")
                         if isinstance(video_detail, dict):
                             return video_detail
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
     router_json = _extract_balanced_json(html, "window._ROUTER_DATA")
@@ -414,13 +392,12 @@ def _extract_json_from_html(html: str) -> dict | None:
                             item_list = video_info_res.get("item_list")
                             if isinstance(item_list, list) and item_list:
                                 return item_list[0]
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     return None
 
-
 async def _request_page(url: str, user_agent: str = MOBILE_UA) -> str | None:
-    """抓取页面 HTML，命中风控/空页返回 None（对应原 requestPage）。"""
+
     try:
         html = await _fetch_text(
             url,
@@ -434,15 +411,14 @@ async def _request_page(url: str, user_agent: str = MOBILE_UA) -> str | None:
             },
             user_agent=user_agent,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     if _is_blocked_html(html):
         return None
     return html
 
-
 async def _fetch_detail_by_id(resolved_url: str, vid: str) -> dict | None:
-    """依次尝试候选页面与 UA，返回首个命中 detail（对应原 fetchDetailById）。"""
+
     page_urls = _build_share_fetch_urls(resolved_url, vid)
     for page_url in page_urls:
         is_ies = "iesdouyin.com" in page_url
@@ -456,17 +432,15 @@ async def _fetch_detail_by_id(resolved_url: str, vid: str) -> dict | None:
                 return detail
     return None
 
-
 async def _get_real_url(url: str) -> str:
-    """解短链：先取 Location，失败则整体跟随重定向（对应原 getRealUrl）。"""
+
     location = await _get_location(url, MOBILE_UA)
     if location:
         return location
     return await _follow_redirect(url, MOBILE_UA)
 
-
 async def parse(url: str) -> dict:
-    """解析抖音链接，返回统一结构；失败抛 RuntimeError（中文信息）。"""
+
     cleaned_url = _clean_url_tail(_strip_tags(_extract_douyin_url(url)))
     if not cleaned_url:
         raise RuntimeError("请输入抖音链接")

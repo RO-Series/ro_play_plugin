@@ -1,13 +1,3 @@
-"""娱乐经济系统模块（EntertainmentModule）。
-
-对应原 index.mjs：幸运轮盘（L10832）、签到/打卡（L10904）、我的信息（L11148）、
-打劫（L11207）、归笺排行榜（L11334）、签到排行榜（L11389）、存款排行榜（L11446）、
-银行系统（L11530）、存款/取款（L11556-L11701）、转移归笺（L11702）、
-钓鱼（L15623）、我的鱼获（L15741）、出售（L15850）、商店（L16940-L17109）。
-
-数据路径前缀「BaiXuan」→「BaiXuan」。鱼池模板：star.data_path/templates/text/
-fish_pool_1.json（普通）、fish_pool_2.json（高级）。
-"""
 from __future__ import annotations
 
 import math
@@ -20,15 +10,14 @@ import aiofiles
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
 
-# 商店商品配置（原 L16940 内嵌 JSON，仅「诱饵」一种）
 SHOP_ITEMS: list[dict] = [
     {"道具": "诱饵", "原价": 100, "限购": {"模式": "个人", "数量": 20}},
 ]
-# 连签奖励（原 L11030）
+
 STREAK_REWARDS: list[tuple[int, int, str]] = [
     (7, 520, "7"), (14, 1000, "14"), (30, 2000, "30"), (60, 10000, "60"),
 ]
-# 节日礼包（原 L10990）
+
 FESTIVALS: list[dict] = [
     {"dates": ["0501", "0502", "0503", "0504", "0505", "0506"], "归笺": 1000, "诱饵": 15, "name": "劳动节"},
     {"dates": ["0601"], "归笺": 3333, "诱饵": 33, "name": "六一"},
@@ -41,18 +30,14 @@ BANK_MONEY_REL = "BaiXuan/娱乐系统/游戏数据/银行系统/银行归笺.js
 BANK_TIME_REL = "BaiXuan/娱乐系统/游戏数据/银行系统/储存时间.json"
 SIGN_ROOT = "BaiXuan/娱乐系统/签到数据"
 
-
 def _now() -> int:
     return int(time.time())
-
 
 def _today() -> str:
     return time.strftime("%Y-%m-%d")
 
-
 def _today_md() -> str:
     return time.strftime("%m%d")
-
 
 def _time_a(fmt: str, ts: int | None = None) -> str:
     t = time.localtime(_now() if ts is None else int(ts))
@@ -65,17 +50,14 @@ def _time_a(fmt: str, ts: int | None = None) -> str:
         out = out.replace(k, v)
     return out
 
-
 def rand_int(a: int, b: int) -> int:
     return random.randint(int(a), int(b))
-
 
 def rand_float(a: float, b: float) -> float:
     return round(random.uniform(float(a), float(b)), 2)
 
-
 def money_a(number: Any) -> str:
-    """原 moneyA：按 1e5/1e3 分级显示 玉令/玉笺/归笺。"""
+
     n = float(number or 0)
     erci = math.ceil(n)
     if erci == 0:
@@ -91,19 +73,15 @@ def money_a(number: Any) -> str:
     out += f"{gj}归笺"
     return out
 
-
 class EntertainmentModule:
-    """签到 / 钓鱼 / 银行 / 轮盘 / 打劫 / 运势 / 商店 / 我的信息。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
 
-    # ==================== 工具 ====================
-
     async def _ent(self) -> bool:
         try:
             return await self.star.deep_entertainment_enabled()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"深度娱乐开关读取异常: {e}")
             return True
 
@@ -117,12 +95,12 @@ class EntertainmentModule:
             wj_time = int(data.get("授权时间", 0) or 0)
             wj_km = int(data.get("卡密时长", 0) or 0)
             return wj_time != 0 and wj_km != 0 and (_now() - wj_time) <= wj_km
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return False
 
     async def _gate(self, event: Any) -> bool:
-        """娱乐总开关 + 授权校验；未通过返回 False（不回复）。"""
+
         if not await self._ent():
             return False
         return await self._authorized(event)
@@ -141,38 +119,36 @@ class EntertainmentModule:
         return cur + amount
 
     async def _load_fish_pool(self, name: str) -> dict:
-        """从 star.data_path/templates/text/ 读取鱼池 JSON。"""
+
         p = self.star.data_path / "templates" / "text" / name
         try:
             async with aiofiles.open(p, "r", encoding="utf-8") as f:
                 text = await f.read()
             return json_loads(text) if text else {}
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"读取鱼池 {name} 失败: {e}")
             return {}
 
     async def _render_image(self, event: Any, template: str, data: dict, width: int = 750) -> Any | None:
-        """渲染 HTML 返回 event.image_result，失败返回 None。"""
+
         try:
             if not self.star.config.get("html_render_enabled", False):
                 return None
             url = await self.star.render.render_html(template, data, width=width)
             if url:
                 return event.image_result(url)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"渲染 {template} 失败: {e}")
         return None
 
-    # ==================== 签到 ====================
-
     async def sign_in(self, event: Any):
-        """每日签到：名次奖励 + 周末×1.5 + 连签奖励；html_render_enabled 时出图。"""
+
         try:
             if not await self._gate(event):
                 return None
             uid = str(event.get_sender_id())
             今天 = _today()
-            星期 = time.localtime().tm_wday  # 0=周一
+            星期 = time.localtime().tm_wday
             今日人数 = int(await self.star.store.read_key(f"{SIGN_ROOT}/全服记录数量.json", 今天, 0) or 0)
             累计次数 = int(await self.star.store.read_key(f"{SIGN_ROOT}/累计次数.json", uid, 0) or 0)
             检测 = await self.star.store.read_key(f"{SIGN_ROOT}/日期记录/{今天}/检测.json", uid, "未知")
@@ -237,12 +213,12 @@ class EntertainmentModule:
             await self.star.store.write_key(f"{SIGN_ROOT}/日期记录/{今天}/检测.json", uid, "已签到")
             await self.star.store.write_key(f"{SIGN_ROOT}/日期记录/{今天}/排名.json", uid, 本次序号)
             await self.star.store.write_key(f"{SIGN_ROOT}/日期记录/{今天}/详细时间.json", uid, 当前时间)
-            # 每日总榜
+
             总榜 = await self.star.store.read_json(f"{SIGN_ROOT}/每日总榜/{今天}.json", []) or []
             if isinstance(总榜, list):
                 总榜.append({"QQ": uid, "排名": 本次序号, "获取归笺": 增加归笺, "签到时间": 当前时间})
                 await self.star.store.write_json(f"{SIGN_ROOT}/每日总榜/{今天}.json", 总榜)
-            # 连签
+
             上次签到时间 = int(await self.star.store.read_key(f"{SIGN_ROOT}/连签记录/上次签到/详细时间.json", uid, 0) or 0)
             时间差 = 当前时间戳 - 上次签到时间
             if 时间差 > 129600 or 上次签到时间 == 0:
@@ -253,7 +229,7 @@ class EntertainmentModule:
                 streak显示 = f"连续 {连签数量} 天，继续保持哟～"
             await self.star.store.write_key(f"{SIGN_ROOT}/连签记录/连签数量.json", uid, 连签数量)
             await self.star.store.write_key(f"{SIGN_ROOT}/连签记录/上次签到/详细时间.json", uid, 当前时间戳)
-            # 连签奖励
+
             连签触发 = False
             连签感言 = ""
             for days, reward, key in STREAK_REWARDS:
@@ -264,7 +240,7 @@ class EntertainmentModule:
                         连签触发 = True
                         连签感言 += f"【连签{days}天奖励:{reward}归笺】"
                         await self.star.store.write_key(f"{SIGN_ROOT}/连签记录/连签奖励_{key}.json", uid, True)
-            # 事件列表
+
             事件列表: list[dict] = []
             if 周末触发:
                 事件列表.append({"text": "【周末翻倍×1.5】", "bonus": False})
@@ -323,12 +299,12 @@ class EntertainmentModule:
                 lines.append("---------------\n[触发]: " + "".join(triggers))
             lines.append("════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"签到异常: {e}")
             return "签到执行出错，请查看日志"
 
     async def sign_rank(self, event: Any):
-        """签到排行榜（前 10）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -352,14 +328,12 @@ class EntertainmentModule:
                 lines[2] = f"你的排名 : {本人排名}"
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"签到排行榜异常: {e}")
             return "签到排行榜执行出错，请查看日志"
 
-    # ==================== 钓鱼 ====================
-
     async def fishing(self, event: Any, times: int = 1):
-        """钓鱼：/钓鱼 [次数]，次数 1/5/10/20/50/100。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -429,12 +403,12 @@ class EntertainmentModule:
                 await self.star.sender.send_forward(event, [node])
                 return None
             return text
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"钓鱼异常: {e}")
             return "钓鱼执行出错，请查看日志"
 
     async def my_fish(self, event: Any):
-        """我的鱼获。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -476,12 +450,12 @@ class EntertainmentModule:
             lines.append("出售 海龙(999kg)")
             lines.append("出售 海龙(999kg) 3")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"我的鱼获异常: {e}")
             return "我的鱼获执行出错，请查看日志"
 
     async def sell_fish(self, event: Any, args: str = ""):
-        """出售鱼：/出售 全部鱼 或 /出售 鱼名(重量kg) [数量]。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -558,14 +532,12 @@ class EntertainmentModule:
                 lines.append(f"🛑剩余数量: {剩余} 条")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"出售鱼异常: {e}")
             return "出售鱼执行出错，请查看日志"
 
-    # ==================== 银行 ====================
-
     async def bank_menu(self, event: Any):
-        """银行系统菜单。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -579,12 +551,12 @@ class EntertainmentModule:
                 "打劫[艾特别人]\n"
                 "══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"银行菜单异常: {e}")
             return "银行菜单执行出错，请查看日志"
 
     async def bank_deposit(self, event: Any, amount: str = ""):
-        """存款：/存款 数量 或 /全部存款。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -611,13 +583,13 @@ class EntertainmentModule:
                 "存款成功啦～！\n══════════════\n"
                 f"[存入]:{money_a(要存)}\n[总共]:{money_a(银行 + 要存)}\n══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"存款异常: {e}")
             return "存款执行出错，请查看日志"
 
     @staticmethod
     def _bank_profit(本金: float, 储存时间: int) -> tuple[float, float]:
-        """按储存时长复利：每 2 小时计息 0.025%~0.19%。返回 (利润, 总小时)。"""
+
         now = _now()
         总秒数 = max(0, now - 储存时间)
         总小时 = 总秒数 / 3600
@@ -639,7 +611,7 @@ class EntertainmentModule:
         return math.ceil(本金 * 剩余小时数 * rate), 总小时
 
     async def bank_withdraw(self, event: Any, amount: str = ""):
-        """取款：/取款 数量 或 /全部取款（结清利润）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -669,12 +641,12 @@ class EntertainmentModule:
                 f"[取出]:{money_a(要取)}\n-------------------\n"
                 f"[利润]:{money_a(利润)}\n[时长]:{round(总小时, 2)}小时\n══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"取款异常: {e}")
             return "取款执行出错，请查看日志"
 
     async def transfer(self, event: Any, args: str = ""):
-        """转移归笺：/转移归笺 #QQ #数量。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -694,12 +666,12 @@ class EntertainmentModule:
             await self.star.store.write_key(MONEY_REL, 目标, 你归笺 + 数量)
             await self.star.store.write_key(MONEY_REL, uid, await self._money(uid) - 数量)
             return f"归笺转移成功～！\n目标:#{目标}\n数量:#{数量}"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"转移归笺异常: {e}")
             return "转移归笺执行出错，请查看日志"
 
     async def bank_rank(self, event: Any):
-        """存款排行榜（含利润）。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -720,12 +692,12 @@ class EntertainmentModule:
                 lines.append(f"{i + 1}.【{row['QQ']}】: {money_a(row['总额'])}{mark}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"存款排行榜异常: {e}")
             return "存款排行榜执行出错，请查看日志"
 
     async def money_rank(self, event: Any):
-        """归笺排行榜。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -740,7 +712,7 @@ class EntertainmentModule:
                 lines.append(f"{i + 1}.【{人}】: {money_a(值)}{mark}")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"归笺排行榜异常: {e}")
             return "归笺排行榜执行出错，请查看日志"
 
@@ -751,10 +723,8 @@ class EntertainmentModule:
                 return i + 1
         return "无"
 
-    # ==================== 轮盘 / 打劫 ====================
-
     async def roulette(self, event: Any, amount: str = ""):
-        """幸运轮盘：1% 概率爆奖池。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -788,7 +758,7 @@ class EntertainmentModule:
                 f"[奖池增加]:{数值}归笺\n[目前奖池]:{文件 + 数值}归笺\n══════════════\n"
                 "不中时会把归笺融入奖池哦～"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"幸运轮盘异常: {e}")
             return "幸运轮盘执行出错，请查看日志"
 
@@ -800,12 +770,12 @@ class EntertainmentModule:
                     qq = str(getattr(seg, "qq", "") or "")
                     if qq and qq != "all":
                         targets.append(qq)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return targets
 
     async def rob(self, event: Any):
-        """打劫：@ 目标。冷却 120s，目标保护 600s。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -875,7 +845,7 @@ class EntertainmentModule:
             禁言状态 = False
             gid = event.get_group_id()
             if 时间 > 0 and gid:
-                # 机器人身份高于目标时才可禁言
+
                 try:
                     bot_self = str(getattr(event.message_obj, "self_id", "") or "")
                     bot_info = await self.star.api.get_group_member_info(gid, bot_self) if bot_self else None
@@ -885,7 +855,7 @@ class EntertainmentModule:
                     if bot_level > target_level or bot_level == 3:
                         await self.star.api.call("set_group_ban", group_id=gid, user_id=uid, duration=时间 * 60)
                         禁言状态 = True
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.warning(f"打劫失败禁言异常: {e}")
             await self.star.store.write_key(MONEY_REL, uid, max(0, await self._money(uid) - 惩罚))
             await self.star.store.write_key(MONEY_REL, target, await self._money(target) + 惩罚)
@@ -893,14 +863,12 @@ class EntertainmentModule:
             if 禁言状态:
                 lines.append(f" - 还被关禁闭「{时间}」分钟")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"打劫异常: {e}")
             return "打劫执行出错，请查看日志"
 
-    # ==================== 今日运势 ====================
-
     async def fortune(self, event: Any):
-        """今日运势：按 (日+QQ) 固定选取签文与背景图，渲染 fortune.html。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -909,7 +877,7 @@ class EntertainmentModule:
             try:
                 数据 = await self._read_json_text("fortune.json")
                 图片数据 = await self._read_json_text("url.json")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"运势资源读取失败: {e}")
                 数据, 图片数据 = [], []
             rng = random.Random(f"{uid}_{今天}")
@@ -955,25 +923,23 @@ class EntertainmentModule:
             if render:
                 return render
             return f"🜲 今日运势 🜲\n══════════════\n[运势]:{标题} {星数}\n[附言]:{附言}\n[细附]:{细附}\n══════════════"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"今日运势异常: {e}")
             return "今日运势执行出错，请查看日志"
 
     async def _read_json_text(self, name: str) -> Any:
-        """读取 star.data_path/templates/text/ 下的 JSON 模板。"""
+
         p = self.star.data_path / "templates" / "text" / name
         try:
             async with aiofiles.open(p, "r", encoding="utf-8") as f:
                 text = await f.read()
             return json_loads(text) if text else []
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"读取模板 {name} 失败: {e}")
             return []
 
-    # ==================== 我的信息 ====================
-
     async def my_info(self, event: Any):
-        """我的信息：归笺/银行/诱饵/签到的汇总卡片。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -1007,14 +973,12 @@ class EntertainmentModule:
                 width=1080,
             )
             return render if render else text
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"我的信息异常: {e}")
             return "我的信息执行出错，请查看日志"
 
-    # ==================== 商店 ====================
-
     async def shop(self, event: Any):
-        """刷新每日商店货架。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -1063,12 +1027,12 @@ class EntertainmentModule:
                 await self.star.store.write_key(f"BaiXuan/娱乐系统/商店系统/每日数据/{今天}.json", 名字 + "_模式", 限购模式)
                 await self.star.store.write_key(f"BaiXuan/娱乐系统/商店系统/每日数据/{今天}.json", 名字 + "_数量", 限购数量)
             return "\n".join(lines) or "商店数据加载异常！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"商店异常: {e}")
             return "商店执行出错，请查看日志"
 
     async def buy(self, event: Any, args: str = ""):
-        """购买道具：/买 #名称 #数量。"""
+
         try:
             if not await self._gate(event):
                 return None
@@ -1118,20 +1082,18 @@ class EntertainmentModule:
                 f"💠消耗归笺【{计算价格}】\n"
                 "══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"购买道具异常: {e}")
             return "购买道具执行出错，请查看日志"
-
-    # ==================== legacy ====================
 
     def _nickname(self, event: Any) -> str:
         try:
             return str(getattr(event.message_obj.sender, "nickname", "") or "未知")
-        except Exception:  # noqa: BLE001
+        except Exception:
             return "未知"
 
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀娱乐指令：签到/钓鱼/银行/轮盘/打劫/运势/商店等。"""
+
         try:
             if message in ("签到", "打卡"):
                 return await self.sign_in(event)
@@ -1182,14 +1144,13 @@ class EntertainmentModule:
             if m:
                 return await self.buy(event, f"{m.group(1)} {m.group(2)}")
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"娱乐 legacy 异常: {e}")
             return None
-
 
 def json_loads(text: str) -> Any:
     import json
     try:
         return json.loads(text)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None

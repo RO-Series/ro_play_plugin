@@ -1,15 +1,3 @@
-"""发言统计模块（TalkStatsModule）。
-
-对应原 index.mjs 的以下功能：
-- 被动：L8308「发言统计」开关开启时，每收到一条群消息即对
-  BaiXuan/扩展功能/发言统计/{群号}/次数统计/{日}.json 的发送者计数 +1。
-- 指令：L14660「发言排行(今日|昨日|七日|本月|个人)榜」。
-
-数据：BaiXuan/扩展功能/发言统计/{群号}/次数统计/{日}.json
-（{QQ: 次数}，文件名为 YYYY-MM-DD，可字典序比较）。
-
-命名替换：路径前缀「BaiXuan」→「BaiXuan」。
-"""
 from __future__ import annotations
 
 import datetime
@@ -18,9 +6,7 @@ from typing import Any
 
 from astrbot.api import logger
 
-
 class TalkStatsModule:
-    """发言统计：群消息计数与排行查询。"""
 
     def __init__(self, star) -> None:
         self.star = star
@@ -33,10 +19,8 @@ class TalkStatsModule:
     def _stats_dir(self, gid: str) -> str:
         return f"BaiXuan/扩展功能/发言统计/{gid}/次数统计"
 
-    # ==================== 被动计数 ====================
-
     async def count(self, event) -> None:
-        """被动：群消息计数 +1（原 L8308）。"""
+
         try:
             gid = str(event.get_group_id() or "")
             if not gid:
@@ -46,13 +30,11 @@ class TalkStatsModule:
             rel = f"{self._stats_dir(gid)}/{today}.json"
             num = int(await self.store.read_key(rel, uid, 0) or 0)
             await self.store.write_key(rel, uid, num + 1)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发言统计失败: {e}")
 
-    # ==================== 无前缀 legacy ====================
-
     async def legacy(self, event, message: str) -> Any:
-        """正则匹配无前缀发言排行指令（原 L14660）。"""
+
         try:
             m = re.match(r"^发言排行(今日|昨日|七日|本月|个人)榜$", message)
             if not m:
@@ -72,7 +54,7 @@ class TalkStatsModule:
                 return await self._rank_range(event, gid, first, self._day_str(), "本月")
             if kind == "个人":
                 return await self._rank_personal(event, gid)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发言排行 legacy 异常: {e}")
         return None
 

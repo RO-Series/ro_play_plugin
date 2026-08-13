@@ -1,5 +1,3 @@
-"""RO_Play 功能模块包。
-"""
 from lib.modules.admin import AdminModule
 from lib.modules.blacklist import BlacklistModule
 from lib.modules.card_shop import CardShopModule

@@ -1,17 +1,3 @@
-"""发卡系统模块（CardShopModule）。
-
-对应原 index.mjs 的发卡区（L16007-L16624）：添加发卡商品/修改发卡商品/填充发卡商品/
-清空发卡商品/删除发卡商品/发卡商品定价/发卡商品上下架/发卡商店/兑换商品/查看商品列表，
-以及工具函数 load发卡商品代号表（L6954）/load发卡商品价格表（L6964）/
-load发卡商品上下架表（L6974）/发卡库存文件路径（L6991）/发卡取出前列（L7002）。
-
-数据（BaiXuan/扩展功能/发卡系统/）：
-- 商品代号.json（商品名 → 专属代号）
-- 商品价格.json（商品名 → 价格）
-- 商品上下架.json（商品名 → true/false）
-- 兑换日志.json
-- 库存/{代号}.txt（每行一条卡密；兑换时从头部取出 N 行原子扣减）
-"""
 from __future__ import annotations
 
 import random
@@ -24,25 +10,19 @@ from astrbot.api import logger
 SHOP_REL = "BaiXuan/扩展功能/发卡系统"
 STOCK_REL = f"{SHOP_REL}/库存"
 
-
 def _code() -> str:
-    """生成专属代号：3 个大写字母 + 6 位数字（原 rand("A","Z")×3 + rand(1e5,999999)）。"""
+
     letters = "".join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(3))
     return letters + str(random.randint(100000, 999999))
-
 
 def _log_time() -> str:
     t = time.localtime()
     return f"{t.tm_year:04d}-{t.tm_mon:02d}-{t.tm_mday:02d} {t.tm_hour:02d}:{t.tm_min:02d}:{t.tm_sec:02d}"
 
-
 class CardShopModule:
-    """发卡系统。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
-
-    # ==================== 工具 ====================
 
     async def _authorized(self, event: Any) -> bool:
         try:
@@ -54,7 +34,7 @@ class CardShopModule:
             wj_time = int(data.get("授权时间", 0) or 0)
             wj_km = int(data.get("卡密时长", 0) or 0)
             return wj_time != 0 and wj_km != 0 and (int(time.time()) - wj_time) <= wj_km
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return False
 
@@ -69,7 +49,7 @@ class CardShopModule:
         return len(await self._stock_lines(code))
 
     async def _take_from_stock(self, code: str, n: int) -> list[str] | None:
-        """从库存头部原子取出 N 行卡密，不足返回 None。"""
+
         text = await self.star.store.read_text(f"{STOCK_REL}/{code}.txt", "")
         lines = [ln for ln in text.splitlines() if ln.strip()]
         if len(lines) < n:
@@ -82,10 +62,8 @@ class CardShopModule:
     async def _money(self, uid: Any) -> int:
         return int(await self.star.store.read_key("BaiXuan/娱乐系统/游戏数据/归笺.json", str(uid), 0) or 0)
 
-    # ==================== 指令方法 ====================
-
     async def shop(self, event: Any):
-        """发卡商店：展示上架商品 + 价格 + 库存。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -109,12 +87,12 @@ class CardShopModule:
                     lines.append("──────────────")
             lines.append("══════════════\n💡 购买：兑换商品 商品名 数量\n📖 完整说明：发卡系统")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发卡商店异常: {e}")
             return "发卡商店执行出错，请查看日志"
 
     async def exchange(self, event: Any, args: str = ""):
-        """兑换商品：/兑换商品 名称 数量。"""
+
         try:
             if not await self._authorized(event):
                 return None
@@ -176,12 +154,12 @@ class CardShopModule:
                     f"已扣 {总价} 归笺，剩余 {兑换后货币}"
                 )
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"兑换商品异常: {e}")
             return "兑换商品执行出错，请查看日志"
 
     async def add_product(self, event: Any, name: str = ""):
-        """添加发卡商品（管理员）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -194,12 +172,12 @@ class CardShopModule:
             随机代号 = _code()
             await self.star.store.write_key(f"{SHOP_REL}/商品代号.json", name, 随机代号)
             return f"好啦！已经成功添加这个商品啦，专属代号为{随机代号}"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"添加发卡商品异常: {e}")
             return "添加发卡商品执行出错，请查看日志"
 
     async def fill_product(self, event: Any, args: str = ""):
-        """填充发卡商品（管理员）：首行商品名，后续每行一条卡密。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -239,12 +217,12 @@ class CardShopModule:
             if 批次内重复:
                 回复 += f"；跳过本批重复 {len(批次内重复)} 条：{'、'.join(批次内重复)}"
             return 回复
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"填充发卡商品异常: {e}")
             return "填充发卡商品执行出错，请查看日志"
 
     async def set_price(self, event: Any, args: str = ""):
-        """发卡商品定价（管理员）：/发卡商品定价 名称 价格。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -257,12 +235,12 @@ class CardShopModule:
                 return f"商品「{商品名}」不存在，请先添加发卡商品"
             await self.star.store.write_key(f"{SHOP_REL}/商品价格.json", 商品名, 价格)
             return f"已为「{商品名}」设定价格：{价格} 归笺"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发卡商品定价异常: {e}")
             return "发卡商品定价执行出错，请查看日志"
 
     async def shelf(self, event: Any, name: str = "", on: bool = True):
-        """发卡商品上架 / 下架（管理员）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -275,12 +253,12 @@ class CardShopModule:
             await self.star.store.write_key(f"{SHOP_REL}/商品上下架.json", name, bool(on))
             action = "上架（商店展示，可兑换）" if on else "下架（商店不展示，用户无法兑换）"
             return f"已将「{name}」设为{action}"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发卡商品上下架异常: {e}")
             return "发卡商品上下架执行出错，请查看日志"
 
     async def clear_product(self, event: Any, name: str = ""):
-        """清空发卡商品（管理员）：清空该商品全部库存。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -295,14 +273,12 @@ class CardShopModule:
                 return f"商品「{name}」还没有数据，无需清空"
             await self.star.store.write_text(f"{STOCK_REL}/{代号}.txt", "")
             return f"已清空商品「{name}」的所有数据"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"清空发卡商品异常: {e}")
             return "清空发卡商品执行出错，请查看日志"
 
-    # ==================== legacy ====================
-
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀指令：发卡系统菜单 / 修改发卡商品 / 删除发卡商品 / 读取发卡库存条数。"""
+
         try:
             if message == "发卡系统":
                 if not await self._authorized(event):
@@ -391,6 +367,6 @@ class CardShopModule:
                 库存 = await self._stock_count(代号)
                 return f"商品「{商品名}」当前库存 {库存} 条"
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"发卡系统 legacy 异常: {e}")
             return None

@@ -1,10 +1,3 @@
-"""定时任务调度。
-
-对应原 index.mjs 的 scheduleNextTask（L18632）/ handleScheduledTask（L18442）
-与每秒一次的 mkbotRunScheduledBroadcastTick（L19401）。
-承载：群聊续火、好友续火、整点报时、全群打卡、自动点赞、自动备份、定时 CQ 广播。
-全部改为 asyncio 任务；任务句柄由 main 保存并在 terminate() 中取消，防止热重载残留。
-"""
 from __future__ import annotations
 
 import asyncio
@@ -16,9 +9,7 @@ from astrbot.api import logger
 
 HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
 
-
 class Scheduler:
-    """整点调度器 + 每秒广播 tick。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
@@ -28,25 +19,23 @@ class Scheduler:
         self._running = False
 
     async def run_hourly(self) -> None:
-        """整点任务循环：计算到下一整点后触发。"""
+
         while self._running:
             now = datetime.now()
             await asyncio.sleep((3600 - now.minute * 60 - now.second) % 3600)
             try:
                 await self.hourly_tick()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"整点任务异常: {e}")
 
     async def run_broadcast(self) -> None:
-        """每秒广播 tick（原 setInterval 1000ms）。"""
+
         while self._running:
             try:
                 await self.broadcast_tick()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"广播 tick 异常: {e}")
             await asyncio.sleep(1)
-
-    # ---------- 整点任务 ----------
 
     async def hourly_tick(self) -> None:
         hour = datetime.now().hour
@@ -58,13 +47,13 @@ class Scheduler:
             tasks.append(self._hourly_chime())
         if self.star.config.get("backup_enabled", False):
             tasks.append(self._auto_backup())
-        # 全群打卡与自动点赞每天一次
+
         tasks.append(self._group_sign())
         tasks.append(self._auto_like())
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _group_firekeep(self) -> None:
-        """群聊续火：每日每群一次，文案或图片模式。"""
+
         try:
             groups = await self.star.api.get_group_list()
             today = time.strftime("%Y-%m-%d")
@@ -79,11 +68,11 @@ class Scheduler:
                 await self.star.store.write_key(
                     "BaiXuan/事件系统/状态数据/群聊/{}.json".format(today), gid, True
                 )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"群聊续火失败: {e}")
 
     async def _friend_firekeep(self) -> None:
-        """好友续火：需全局开关 + 单个开关。"""
+
         try:
             if not await self.star.global_event_enabled("好友续火"):
                 return
@@ -103,11 +92,11 @@ class Scheduler:
                 await self.star.store.write_key(
                     "BaiXuan/事件系统/状态数据/好友/{}.json".format(today), uid, True
                 )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"好友续火失败: {e}")
 
     async def _hourly_chime(self) -> None:
-        """整点报时（07-23 点，01-06 不报）。"""
+
         try:
             hour = datetime.now().hour
             groups = await self.star.api.get_group_list()
@@ -118,11 +107,11 @@ class Scheduler:
                 gid = str(g.get("group_id"))
                 if await self.star.group_event_enabled(gid, "hourly_chime"):
                     await self.star.sender.send_to_group(gid, text)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"整点报时失败: {e}")
 
     async def _group_sign(self) -> None:
-        """全群打卡（send_group_sign）。"""
+
         try:
             groups = await self.star.api.get_group_list()
             today = time.strftime("%Y-%m-%d")
@@ -138,11 +127,11 @@ class Scheduler:
                 await self.star.store.write_key(
                     "BaiXuan/扩展功能/全群打卡/打卡状态/{}.json".format(today), gid, True
                 )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"全群打卡失败: {e}")
 
     async def _auto_like(self) -> None:
-        """自动点赞：全部模式或特定名单（每日一次）。"""
+
         try:
             if not self.star.config.get("auto_like_enabled", False):
                 return
@@ -167,11 +156,11 @@ class Scheduler:
                     "BaiXuan/扩展功能/自动点赞/点赞记录/{}.json".format(today), str(uid), True
                 )
                 await asyncio.sleep(1)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"自动点赞失败: {e}")
 
     async def _auto_backup(self) -> None:
-        """自动备份：在配置时间点 zip 数据目录并私发（简化实现：zipfile 打包 JSON）。"""
+
         try:
             hour = datetime.now().hour
             times = [int(x.strip()) for x in str(self.star.config.get("backup_time", "12")).split(",") if x.strip().isdigit()]
@@ -188,13 +177,11 @@ class Scheduler:
                         zf.write(p, p.relative_to(self.star.data_path))
             buf.seek(0)
             await self.star.api.call("upload_private_file", user_id=target_qq, name="ro_play_backup.zip", data=base64_encode(buf.getvalue()))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"自动备份失败: {e}")
 
-    # ---------- 定时 CQ 广播 ----------
-
     async def broadcast_tick(self) -> None:
-        """每秒检查定时 CQ 广播配置并执行（interval / calendar 模式）。"""
+
         conf = await self.star.store.read_json(
             "BaiXuan/扩展功能/群发系统/定时CQ.json",
             {"enabled": False, "mode": "interval", "intervalSec": 3600, "atAll": False, "calendarRules": []},
@@ -229,7 +216,7 @@ class Scheduler:
 
     @staticmethod
     def _match_calendar(rule: dict, now: float) -> bool:
-        """calendar 规则匹配：{type: once|daily|hourly, ts|hour}。"""
+
         try:
             rtype = rule.get("type", "once")
             if rtype == "once":
@@ -243,8 +230,7 @@ class Scheduler:
             pass
         return False
 
-
 def base64_encode(data: bytes) -> str:
-    """返回 OneBot 上传文件所需的 base64 编码字符串。"""
+
     import base64
     return "base64://" + base64.b64encode(data).decode("utf-8")

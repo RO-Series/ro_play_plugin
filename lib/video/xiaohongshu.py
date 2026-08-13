@@ -1,12 +1,3 @@
-"""小红书视频/图文解析
-
-算法保持与 JS 原版一致：域名白名单校验 -> xhs.com 归一化为 xhslink.com ->
-非 www.xiaohongshu.com 链接先解短链重定向 -> 提取笔记 ID ->
-抓取页面并解析 window.__INITIAL_STATE__ 内嵌 JSON（note.noteDetailMap / noteData）-
-> 失败时用备份 UA 重试，再失败则提取 xsec_token 请求带 token 的 API 页 ->
-formatNoteData 提取视频 masterUrl / 图片 CDN 直链 / 实况图，统一转换为
-{"title","author","cover","url","type","images","music"} 结构。
-"""
 from __future__ import annotations
 
 import json
@@ -47,9 +38,8 @@ _NOTES_RE = re.compile(r"/([a-zA-Z0-9_]+)/([a-zA-Z0-9]+)!")
 _SHORT_RE = re.compile(r"(notes_pre_post|spectrum|notes_uhdr)/([a-zA-Z0-9]+)")
 _BANG_RE = re.compile(r"/([a-zA-Z0-9]+)!")
 
-
 def _is_allowed_domain(url: str, allowed_domains: list[str]) -> bool:
-    """校验链接域名是否在白名单内（对应原 isAllowedDomain）。"""
+
     cleaned = _clean_url_tail(url)
     for allowed in allowed_domains:
         pattern = f"https?://[^/]*{re.escape(allowed)}"
@@ -57,26 +47,23 @@ def _is_allowed_domain(url: str, allowed_domains: list[str]) -> bool:
             return True
     return False
 
-
 def _extract_id(url: str) -> str | None:
-    """从 URL 中提取笔记 ID（对应原 extractId）。"""
+
     for pattern in _ID_PATTERNS:
         matched = pattern.search(url)
         if matched:
             return matched.group(1)
     return None
 
-
 async def _get_real_url(url: str) -> str:
-    """解短链：先取 Location，失败则整体跟随重定向（对应原 getRealUrl）。"""
+
     location = await _get_location(url, EDGE_USER_AGENT)
     if location:
         return location
     return await _follow_redirect(url, EDGE_USER_AGENT)
 
-
 async def _request_page(url: str, user_agent: str = EDGE_USER_AGENT) -> str | None:
-    """抓取页面 HTML，失败返回 None（对应原 requestPage）。"""
+
     if not _is_allowed_domain(url, ALLOWED_DOMAINS):
         return None
     try:
@@ -92,12 +79,11 @@ async def _request_page(url: str, user_agent: str = EDGE_USER_AGENT) -> str | No
             },
             user_agent=user_agent,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
-
 def _process_image_url(url: str) -> str:
-    """将图片路径重写为可直连的 CDN 地址（对应原 processImageUrl）。"""
+
     if not url:
         return ""
     notes_match = _NOTES_RE.search(url)
@@ -114,9 +100,7 @@ def _process_image_url(url: str) -> str:
         return f"https://ci.xiaohongshu.com/{bang_match.group(1)}?imageView2/2/w/1080/format/jpg"
     return url
 
-
 def _streams_sorted(streams: list[tuple[dict, str]]) -> list[dict]:
-    """视频流排序：h265 优先，其次按码率降序（对应原 sort 逻辑）。"""
 
     def _bitrate(item: dict) -> float:
         return float(item.get("avgBitrate") or item.get("videoBitrate") or 0)
@@ -129,9 +113,8 @@ def _streams_sorted(streams: list[tuple[dict, str]]) -> list[dict]:
     )
     return [pair[0] for pair in streams]
 
-
 def _format_note_data(note: dict) -> dict:
-    """将笔记数据转换为统一输出结构（对应原 formatNoteData）。"""
+
     content_type = note.get("type") or "unknown"
     if content_type == "normal":
         content_type = "image"
@@ -166,7 +149,6 @@ def _format_note_data(note: dict) -> dict:
     user = user if isinstance(user, dict) else {}
     author_name = user.get("nickname") or user.get("nickName") or ""
 
-    # 视频直链
     video_url = ""
     if content_type == "video" and video_obj:
         streams: list[tuple[dict, str]] = []
@@ -187,7 +169,6 @@ def _format_note_data(note: dict) -> dict:
         if not video_url and isinstance(consumer, dict) and consumer.get("originVideoKey"):
             video_url = f"http://sns-video-bd.xhscdn.com/{consumer['originVideoKey']}"
 
-    # 图片列表 / 实况图
     images: list[str] = []
     live_photos: list[dict] = []
     if image_list:
@@ -224,9 +205,8 @@ def _format_note_data(note: dict) -> dict:
         "music": None,
     }
 
-
 def _extract_json(html: str, note_id: str) -> dict | None:
-    """解析 window.__INITIAL_STATE__ 内嵌 JSON（对应原 extractJson）。"""
+
     pattern = re.compile(
         r"<script>\s*window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?})</script>",
         re.IGNORECASE,
@@ -237,7 +217,7 @@ def _extract_json(html: str, note_id: str) -> dict | None:
     json_str = matched.group(1).replace("undefined", "null")
     try:
         json_data: Any = json.loads(json_str)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     if not isinstance(json_data, dict):
         return None
@@ -260,9 +240,8 @@ def _extract_json(html: str, note_id: str) -> dict | None:
         return _format_note_data(note)
     return None
 
-
 async def _try_parse_with_token(url: str, note_id: str, response: str) -> dict | None:
-    """提取 xsec_token 后请求带 token 的 API 页重试（对应原 tryParseWithToken）。"""
+
     token = ""
     token_match_1 = re.search(r"token=(.*?)&", response)
     token_match_2 = re.search(r'"xsec_token":\s*"([^"]+)"', response)
@@ -283,9 +262,8 @@ async def _try_parse_with_token(url: str, note_id: str, response: str) -> dict |
         return None
     return _extract_json(api_response, note_id)
 
-
 async def parse(url: str) -> dict:
-    """解析小红书链接，返回统一结构；失败抛 RuntimeError（中文信息）。"""
+
     try:
         cleaned = _clean_url_tail(_strip_tags((url or "").strip()))
         if not cleaned:
@@ -321,5 +299,5 @@ async def parse(url: str) -> dict:
         raise RuntimeError("解析失败，未找到有效内容")
     except RuntimeError:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(f"小红书解析失败: {e}") from e

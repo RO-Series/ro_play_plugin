@@ -1,10 +1,3 @@
-"""B 站视频解析
-
-算法保持与 JS 原版一致：解析 b23.tv 短链（跟随重定向还原）或直接提取 BV 号 ->
-调用 B 站 WBI 接口 x/web-interface/wbi/view 获取视频信息（标题/封面/作者/cid）->
-调用 x/player/wbi/playurl 获取播放直链，统一转换为
-{"title","author","cover","url","type","images","music"} 结构。
-"""
 from __future__ import annotations
 
 import json
@@ -18,18 +11,16 @@ __all__ = ["parse"]
 _B23_RE = re.compile(r"https?://b23\.tv/[a-zA-Z0-9]+", re.IGNORECASE)
 _BV_RE = re.compile(r"BV[a-zA-Z0-9]{10}", re.IGNORECASE)
 
-
 def _first_dict_item(data: Any, key: str) -> dict:
-    """从任意 JSON 值中安全取出 dict 子对象（非 dict 则返回空 dict）。"""
+
     if isinstance(data, dict):
         value = data.get(key)
         if isinstance(value, dict):
             return value
     return {}
 
-
 async def parse(url: str) -> dict:
-    """解析 B 站链接（b23.tv 短链或含 BV 号的链接），返回统一结构。"""
+
     raw = (url or "").strip()
     if not raw:
         raise RuntimeError("参数为空，请输入 B 站链接或 BV 号")
@@ -48,19 +39,18 @@ async def parse(url: str) -> dict:
         else:
             if bv_match:
                 bvid = bv_match.group(0)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(f"B 站链接跳转失败: {e}") from e
 
     if not bvid:
         raise RuntimeError("未找到 b23.tv 短链接或 BV 号")
 
-    # 第一步：WBI 视频信息接口
     try:
         view_raw = await _fetch_text(
             f"https://api.bilibili.com/x/web-interface/wbi/view?bvid={bvid}"
         )
         view_data: Any = json.loads(view_raw)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(f"获取 B 站视频信息失败: {e}") from e
     if not isinstance(view_data, dict) or view_data.get("code") != 0:
         raise RuntimeError("获取视频信息失败")
@@ -71,7 +61,6 @@ async def parse(url: str) -> dict:
     if not cid:
         raise RuntimeError("获取视频信息失败：缺少 cid")
 
-    # 第二步：播放地址接口（fnval=4048 与 JS 原版一致，先取 durl 再回退 dash）
     play_url = (
         "https://api.bilibili.com/x/player/wbi/playurl"
         f"?gaia_source=view-card&fnval=4048&platform=html5&bvid={bvid}&cid={cid}"
@@ -79,7 +68,7 @@ async def parse(url: str) -> dict:
     try:
         play_raw = await _fetch_text(play_url)
         play_data: Any = json.loads(play_raw)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(f"获取播放地址失败: {e}") from e
     if not isinstance(play_data, dict) or play_data.get("code") != 0:
         raise RuntimeError("获取播放地址失败")

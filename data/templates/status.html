@@ -384,9 +384,9 @@
   </style>
 </head>
 <body>
-  <div id="mk-render-ready" style="display:none"></div>
+  <div id="ro-render-ready" style="display:none"></div>
   <div class="container">
-    <!-- 顶部用户信息 -->
+
     <div class="header">
       <div class="header-left">
         <div class="user-avatar">
@@ -413,16 +413,15 @@
       </div>
     </div>
 
-    <!-- 主内容区 -->
     <div class="main-content">
-      <!-- 左侧列 -->
+
       <div class="left-column">
-        <!-- 系统状态 -->
+
         <div class="glass-card">
           <div class="card-title">系统状态</div>
-          
+
           <div class="system-status">
-            <!-- CPU 仪表盘 -->
+
             <div class="gauge-container">
               <div class="gauge" id="cpuGauge" style="--percentage: {{cpuUsagePercent}}; --gauge-color: #4CAF50;">
                 <div class="gauge-value" id="cpuValue">{{cpuUsagePercent}}%</div>
@@ -430,7 +429,6 @@
               <div class="gauge-label">CPU</div>
             </div>
 
-            <!-- 内存 仪表盘 -->
             <div class="gauge-container">
               <div class="gauge" id="memGauge" style="--percentage: {{memoryUsagePercent}}; --gauge-color: #FF9800;">
                 <div class="gauge-value" id="memValue">{{memoryUsagePercent}}%</div>
@@ -459,10 +457,9 @@
           </div>
         </div>
 
-        <!-- 存储状态 -->
         <div class="glass-card">
           <div class="card-title">存储状态</div>
-          
+
           <div class="storage-status">
             <div class="progress-label">
               <span>磁盘使用情况</span>
@@ -491,10 +488,9 @@
         </div>
       </div>
 
-      <!-- 右侧列 - 进程占用排行 -->
       <div class="glass-card process-list">
         <div class="card-title">进程占用排行榜 (按内存占用降序排列)</div>
-        
+
         <table class="process-table">
           <thead>
             <tr>
@@ -650,15 +646,15 @@
     // 初始化进程列表
     function initProcessTable() {
       if (!window.processData || !Array.isArray(window.processData)) return;
-      
+
       const tbody = document.getElementById('processTableBody');
       tbody.innerHTML = '';
-      
+
       // 按内存使用量降序排列
       const sortedProcesses = window.processData.sort((a, b) => {
         return parseFloat(b.memory || 0) - parseFloat(a.memory || 0);
       });
-      
+
       // 只显示前 15 个
       sortedProcesses.slice(0, 15).forEach((proc, index) => {
         const tr = document.createElement('tr');
@@ -693,7 +689,7 @@
         document.getElementById('diskFill').style.setProperty('--progress-color', getColor(diskPercent));
       }
     }
-    
+
     // 页面加载完成后初始化
     async function markRenderReady() {
       try {
@@ -723,7 +719,7 @@
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       } catch (_e) {}
       document.body.setAttribute('data-render-ready', '1');
-      var marker = document.getElementById('mk-render-ready');
+      var marker = document.getElementById('ro-render-ready');
       if (marker) marker.textContent = '1';
     }
 

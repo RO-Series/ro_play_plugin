@@ -1,15 +1,3 @@
-"""群老婆/老公模块（GroupWifeModule）。
-
-对应原 index.mjs 的 handleGroupWifeCommands（L503-L877）。
-
-数据（BaiXuan/娱乐系统/今日老婆/）：
-- 处理.json（类型：单群模式/全群模式、冷却、过滤本人、过滤人机）
-- 群组模式/{分群模式}/{群号}/{日}/记录.json（QQ→老婆QQ）、记录2.json（来源）、记录3.json（类型）、冷却.json
-- 群组模式/全群模式/{日}/缓存数据/{小时}.json（成员缓存，每小时刷新一次）
-
-每日抽取一次，可换一次；更换冷却默认 30s（配置 group_wife_cooldown）。
-全群模式用 get_group_member_list 遍历全部群，每 10 群停顿 2 秒限速。
-"""
 from __future__ import annotations
 
 import re
@@ -21,18 +9,14 @@ from astrbot.api import logger
 
 WIFE_REL = "BaiXuan/娱乐系统/今日老婆/处理.json"
 
-
 def _now() -> int:
     return int(time.time())
-
 
 def _today() -> str:
     return time.strftime("%Y-%m-%d")
 
-
 def _hour() -> str:
     return time.strftime("%Y-%m-%d-%H")
-
 
 def _time_a(fmt: str, ts: int | None = None) -> str:
     t = time.localtime(_now() if ts is None else int(ts))
@@ -45,14 +29,10 @@ def _time_a(fmt: str, ts: int | None = None) -> str:
         out = out.replace(k, v)
     return out
 
-
 class GroupWifeModule:
-    """群老婆 / 群老公。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
-
-    # ==================== 工具 ====================
 
     async def _authorized(self, event: Any) -> bool:
         try:
@@ -64,12 +44,12 @@ class GroupWifeModule:
             wj_time = int(data.get("授权时间", 0) or 0)
             wj_km = int(data.get("卡密时长", 0) or 0)
             return wj_time != 0 and wj_km != 0 and (_now() - wj_time) <= wj_km
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return False
 
     async def _draw(self, event: Any, 指定: str, 换人: bool) -> Any:
-        """抽取逻辑：今日/我的 显示，更换/换群 重抽。"""
+
         gid = str(event.get_group_id())
         uid = str(event.get_sender_id())
         self_id = str(getattr(event.message_obj, "self_id", "") or "")
@@ -100,14 +80,14 @@ class GroupWifeModule:
             return self._show_wife(event, 今日老婆, 性别记录, iii, "❌ 你今天已经抽过啦～\n你如果要更换的话请发「更换老婆」「更换老公」")
         if 换人 and 今日老婆 == 0:
             return "你今天好像还没抽过哎～？要不你先抽一下？"
-        # 获取成员数据
+
         data: list[dict] = []
         cache_rel = f"{读写路径}{今天}/缓存数据/{现在小时}.json"
         try:
             cache = await self.star.store.read_json(cache_rel, [])
             if isinstance(cache, list) and cache:
                 data = cache
-        except Exception:  # noqa: BLE001
+        except Exception:
             cache = None
         if not data:
             if 类型 == "全群模式":
@@ -131,7 +111,7 @@ class GroupWifeModule:
                                 "机器人": bool(m.get("is_robot", False)),
                                 "性别": m.get("sex", "unknown"),
                             })
-                    except Exception as e:  # noqa: BLE001
+                    except Exception as e:
                         logger.warning(f"获取群 {来自群} 成员失败: {e}")
                     数量锁 += 1
                     if len(groups) >= 20 and 数量锁 >= 10:
@@ -152,7 +132,7 @@ class GroupWifeModule:
             if data:
                 try:
                     await self.star.store.write_json(cache_rel, data)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.warning(f"写成员缓存失败: {e}")
         total = len(data)
         if total == 0:
@@ -214,49 +194,47 @@ class GroupWifeModule:
                 Comp.Image.fromURL(f"https://q4.qlogo.cn/g?b=qq&nk={wife_qq}&s=5"),
                 Comp.Plain(f"\n{text}"),
             ])
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"老婆展示异常: {e}")
             return title
 
-    # ==================== 指令方法 ====================
-
     async def today(self, event: Any):
-        """今日老婆 / 今日老公。"""
+
         try:
             if not await self._gate(event):
                 return None
             return await self._draw(event, self._wanted(event), False)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"今日老婆异常: {e}")
             return "今日老婆执行出错，请查看日志"
 
     async def mine(self, event: Any):
-        """我的老婆 / 我的老公。"""
+
         try:
             if not await self._gate(event):
                 return None
             return await self._draw(event, self._wanted(event), False)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"我的老婆异常: {e}")
             return "我的老婆执行出错，请查看日志"
 
     async def change(self, event: Any):
-        """更换老婆 / 更换老公（带冷却）。"""
+
         try:
             if not await self._gate(event):
                 return None
             return await self._draw(event, self._wanted(event), True)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"更换老婆异常: {e}")
             return "更换老婆执行出错，请查看日志"
 
     async def switch_group(self, event: Any):
-        """换群老婆：与更换一致（带冷却，重新抽取）。"""
+
         try:
             if not await self._gate(event):
                 return None
             return await self._draw(event, "老婆", True)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"换群老婆异常: {e}")
             return "换群老婆执行出错，请查看日志"
 
@@ -265,7 +243,7 @@ class GroupWifeModule:
             text = event.message_str or ""
             if "老公" in text:
                 return "老公"
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return "老婆"
 
@@ -275,14 +253,12 @@ class GroupWifeModule:
         try:
             if not await self.star.deep_entertainment_enabled():
                 return False
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return await self._authorized(event)
 
-    # ==================== legacy ====================
-
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀指令：群老婆菜单 / 范围 / 冷却 / 过滤开关。"""
+
         try:
             if message == "群老婆":
                 return (
@@ -338,15 +314,13 @@ class GroupWifeModule:
                 await self.star.store.write_key(WIFE_REL, 键, 操作)
                 return f"好哒，这就把【{类型}】的开关改成「{操作}」"
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"群老婆 legacy 异常: {e}")
             return None
-
 
 def asyncio_sleep(seconds: float) -> Any:
     import asyncio
     return asyncio.sleep(seconds)
-
 
 def random_index(a: int, b: int) -> int:
     import random

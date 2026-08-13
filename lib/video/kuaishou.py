@@ -1,11 +1,3 @@
-"""快手视频/图片解析
-算法保持与 JS 原版一致：提取链接 -> 跟随重定向得到真实链接 ->
-识别内容类型（short-video / long-video / photo）与内容 ID ->
-抓取页面并依次解析内嵌状态 window.INIT_STATE（tusjoh 开头的媒体节点，
-支持多图 atlas / 单图 / 视频 mainMvUrls / manifest）与 window.__APOLLO_STATE__
-（defaultClient 下的 VisionVideoDetailPhoto 节点）-> 统一转换为
-{"title","author","cover","url","type","images","music"} 结构。
-"""
 from __future__ import annotations
 
 import json
@@ -21,9 +13,8 @@ USER_AGENT = (
     "(KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1 Edg/122.0.0.0"
 )
 
-
 def _extract_kuaishou_url(text: str) -> str:
-    """从文本中提取快手链接（对应原 extractKuaishouUrl）。"""
+
     short_match = re.search(r"https?://v\.kuaishou\.com/[\w-]+", text, re.IGNORECASE)
     if short_match:
         return short_match.group(0).strip()
@@ -32,20 +23,18 @@ def _extract_kuaishou_url(text: str) -> str:
         return _clean_url_tail(any_match.group(0).strip())
     return (text or "").strip()
 
-
 async def _get_redirected_url(url: str) -> str | None:
-    """跟随重定向并返回最终 URL；失败返回 None（对应原 getRedirectedUrl）。"""
+
     try:
         async with _get_session().get(
             url, headers={"User-Agent": USER_AGENT}, allow_redirects=True
         ) as resp:
             return str(resp.url)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
-
 async def _curl_request(url: str) -> str | None:
-    """抓取页面 HTML，失败返回 None（对应原 curlRequest）。"""
+
     try:
         return await _fetch_text(
             url,
@@ -61,12 +50,11 @@ async def _curl_request(url: str) -> str | None:
             },
             user_agent=USER_AGENT,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
-
 def _extract_content_id_and_type(url: str) -> tuple[str, str]:
-    """识别内容类型与 ID（对应原 extractContentIdAndType）。"""
+
     patterns: tuple[tuple[str, re.Pattern[str]], ...] = (
         ("short-video", re.compile(r"short-video/([^?]+)")),
         ("long-video", re.compile(r"long-video/([^?]+)")),
@@ -78,9 +66,8 @@ def _extract_content_id_and_type(url: str) -> tuple[str, str]:
             return content_type, matched.group(1)
     return "", ""
 
-
 def _filter_media_data(data: dict) -> dict:
-    """只保留 tusjoh 开头且含 fid/photo 的媒体节点（对应原 filterMediaData）。"""
+
     filtered: dict = {}
     for key, value in data.items():
         if not str(key).startswith("tusjoh"):
@@ -89,9 +76,8 @@ def _filter_media_data(data: dict) -> dict:
             filtered[key] = value
     return filtered
 
-
 def _build_music_info(photo: dict) -> dict:
-    """构造音乐信息（对应原 buildMusicInfo，name/artist 字段）。"""
+
     music = photo.get("music") or photo.get("soundTrack") or {}
     music = music if isinstance(music, dict) else {}
     cover = ""
@@ -113,9 +99,8 @@ def _build_music_info(photo: dict) -> dict:
         "url": str(audio_url),
     }
 
-
 def _unify_music(music_info: dict) -> dict:
-    """将 name/artist 字段映射为统一结构的 title/author。"""
+
     return {
         "title": music_info.get("name") or "",
         "author": music_info.get("artist") or "",
@@ -123,24 +108,22 @@ def _unify_music(music_info: dict) -> dict:
         "cover": music_info.get("cover") or "",
     }
 
-
 def _safe_photo(first_item: Any) -> dict:
-    """从媒体节点中安全取出 photo 对象。"""
+
     if not isinstance(first_item, dict):
         return {}
     photo = first_item.get("photo")
     return photo if isinstance(photo, dict) else {}
 
-
 def _parse_init_state(page_content: str) -> dict | None:
-    """解析 window.INIT_STATE 内嵌状态（对应原 parseInitState）。"""
+
     json_string = _extract_balanced_json(page_content, "window.INIT_STATE")
     if not json_string:
         return None
     json_string = re.sub(r";\s*$", "", json_string)
     try:
         data: Any = json.loads(json_string)
-    except Exception:  # noqa: BLE001
+    except Exception:
         cleaned = (
             json_string.replace('\\"', '"')
             .replace(
@@ -154,7 +137,7 @@ def _parse_init_state(page_content: str) -> dict | None:
         )
         try:
             data = json.loads(cleaned)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise RuntimeError(f"JSON解析错误: {e}") from e
     if not isinstance(data, dict):
         return None
@@ -230,19 +213,18 @@ def _parse_init_state(page_content: str) -> dict | None:
             }
     return None
 
-
 def _parse_apollo_state(page_content: str, content_id: str, content_type: str) -> dict | None:
-    """解析 window.__APOLLO_STATE__ 内嵌状态（对应原 parseApolloState）。"""
+
     raw = _extract_balanced_json(page_content, "window.__APOLLO_STATE__")
     if not raw:
         return None
-    # 等价于原 JS 的连续 replace：清理函数字面量、多余逗号与自执行残片
+
     cleaned_data = re.sub(r"function\s*\([^)]*\)\s*{[^}]*}", ":", raw)
     cleaned_data = re.sub(r",\s*(?=}|])", "", cleaned_data)
     cleaned_data = re.sub(r";\(:?\(\)\);/", "", cleaned_data)
     try:
         apollo_state: Any = json.loads(cleaned_data)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     if not isinstance(apollo_state, dict):
         return None
@@ -290,9 +272,8 @@ def _parse_apollo_state(page_content: str, content_id: str, content_type: str) -
         "music": None,
     }
 
-
 async def parse(url: str) -> dict:
-    """解析快手链接，返回统一结构；失败抛 RuntimeError（中文信息）。"""
+
     cleaned_url = _clean_url_tail(_extract_kuaishou_url(url))
     if not cleaned_url:
         raise RuntimeError("url为空")
@@ -314,5 +295,5 @@ async def parse(url: str) -> dict:
         raise RuntimeError("未找到有效媒体信息")
     except RuntimeError:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(f"快手解析失败: {e}") from e

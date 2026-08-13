@@ -1,20 +1,3 @@
-"""续火系统模块（FirekeepModule）。
-
-对应原 index.mjs 的以下功能：
-- L13876「设置续火内容[内容]」、L13895「设置续火模式[文案|图片]」。
-- L13912「(开启|关闭)(好友续火|群聊续火|全部好友续火|全部群聊续火)[目标]」。
-- L13998「管理续火」——统计全部群聊 / 好友的续火开关状态并合并转发展示。
-
-数据：
-- BaiXuan/扩展功能/续火功能/续火内容/文本.txt（续火文案）
-- BaiXuan/扩展功能/续火功能/续火方式/方式.txt（文案|图片）
-- BaiXuan/扩展功能/续火功能/状态数据/好友/开关.json（{QQ: bool}）
-- BaiXuan/事件系统/全局.json（好友续火总开关）
-- 群聊续火开关经 star.group_event_enabled / star.set_group_event(gid, "group_fire", bool)
-  读写 BaiXuan/事件系统/{群号}.json。
-
-命名替换：路径前缀「BaiXuan」→「BaiXuan」，MKbot → RO_Play。
-"""
 from __future__ import annotations
 
 import re
@@ -26,18 +9,14 @@ _TEXT_REL = "BaiXuan/扩展功能/续火功能/续火内容/文本.txt"
 _MODE_REL = "BaiXuan/扩展功能/续火功能/续火方式/方式.txt"
 _FRIEND_SWITCH_REL = "BaiXuan/扩展功能/续火功能/状态数据/好友/开关.json"
 
-
 class FirekeepModule:
-    """续火系统：设置内容 / 模式、开关管理与状态总览。"""
 
     def __init__(self, star) -> None:
         self.star = star
         self.store = star.store
 
-    # ==================== 指令方法（main.py 调用） ====================
-
     async def set_content(self, event, content: str = "") -> Any:
-        """设置续火内容：/设置续火内容 内容（原 L13876）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
@@ -46,12 +25,12 @@ class FirekeepModule:
                 return "至少要一个字哦～！"
             await self.store.write_text(_TEXT_REL, content)
             return f"好哒！这就把续火的内容改成:\n{content}"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"设置续火内容失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def set_mode(self, event, mode: str = "") -> Any:
-        """设置续火模式：/设置续火模式 文案|图片（原 L13895）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
@@ -63,12 +42,12 @@ class FirekeepModule:
                 return f"现在的续火已经是【{mode}】模式啦～！"
             await self.store.write_text(_MODE_REL, mode)
             return f"好哒！这就把续火的发送方式改成【{mode}】哦！～"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"设置续火模式失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def manage(self, event) -> Any:
-        """续火状态总览：/管理续火（原 L13998）。"""
+
         try:
             groups = await self.star.api.get_group_list()
             friends = await self.star.api.get_friend_list()
@@ -109,14 +88,12 @@ class FirekeepModule:
             ]
             await self.star.sender.send_forward(event, nodes)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"管理续火失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
-    # ==================== 无前缀 legacy ====================
-
     async def legacy(self, event, message: str) -> Any:
-        """正则匹配无前缀续火指令（原 L13876/L13912/L13998）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return None
@@ -131,12 +108,12 @@ class FirekeepModule:
             m = re.match(r"^(开启|关闭)(好友续火|群聊续火|全部好友续火|全部群聊续火)([0-9]+|)$", message)
             if m:
                 return await self._switch(event, m.group(1), m.group(2), m.group(3))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"续火 legacy 异常: {e}")
         return None
 
     async def _switch(self, event, operation: str, kind: str, target: str) -> Any:
-        """开关处理：单个目标 或 全部目标（原 L13912）。"""
+
         enable = operation == "开启"
         if kind == "好友续火":
             if not target or len(target) <= 3:
@@ -154,7 +131,7 @@ class FirekeepModule:
                 return f"目前「{target}」已经是【{operation}】状态的啦！"
             await self.star.set_group_event(target, "group_fire", enable)
             return f"好哒！这就把「{target}」的续🔥开关给【{operation}】"
-        # 全部
+
         if kind == "全部好友续火":
             friends = await self.star.api.get_friend_list()
             if not friends:
@@ -170,7 +147,7 @@ class FirekeepModule:
                     lines.append(f"{i}. {uid}✅这就{operation}")
             await self.store.write_json(_FRIEND_SWITCH_REL, switch)
             return await self._maybe_forward(event, "\n".join(lines))
-        # 全部群聊
+
         groups = await self.star.api.get_group_list()
         if not groups:
             return "获取【群聊】列表失败！"
@@ -185,7 +162,7 @@ class FirekeepModule:
         return await self._maybe_forward(event, "\n".join(lines))
 
     async def _maybe_forward(self, event, text: str) -> Any:
-        """数量多时以合并转发发送，否则直接返回文本。"""
+
         if len(text.splitlines()) >= 15:
             nodes = [self.star.sender.build_node("[续火]", event.get_sender_id(), text)]
             await self.star.sender.send_forward(event, nodes)

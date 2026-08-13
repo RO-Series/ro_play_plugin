@@ -1,20 +1,3 @@
-"""入群私聊模块（JoinPmModule）。
-
-对应原 index.mjs 的以下功能：
-- 指令：L8363「(开始|结束)记录[群号]」、L8437「查看记录内容[群号]」、
-  L8488「设置入群私聊概率[群号] [0-100]%」。
-- 被动收录：L8402（私聊任意消息，处于收录状态时把文本/图片/视频/合并转发
-  记录到 BaiXuan/扩展功能/入群私聊/分群/{群号}.json）。
-- 被动重放：L18046（新人入群且群事件 join_pm 开启时按概率逐条私聊重放，
-  每条间隔 300ms）。
-
-数据：
-- BaiXuan/扩展功能/入群私聊/分群/{群号}.json（条目列表）
-- BaiXuan/扩展功能/入群私聊/收录状态.txt（{"状态": 开始|结束, "群号": ...}）
-- BaiXuan/扩展功能/入群私聊/概率.json（{群号: 0~1 浮点}，缺省回退配置 join_pm_probability）
-
-命名替换：路径前缀「BaiXuan」→「BaiXuan」。
-"""
 from __future__ import annotations
 
 import asyncio
@@ -25,7 +8,7 @@ from typing import Any, Optional
 
 import aiohttp
 from astrbot.api import logger
-import astrbot.api.message_components as Comp  # noqa: F401
+import astrbot.api.message_components as Comp
 
 _PM_STORAGE_REL = "BaiXuan/扩展功能/入群私聊/分群"
 _PM_STATUS_REL = "BaiXuan/扩展功能/入群私聊/收录状态.txt"
@@ -33,18 +16,14 @@ _PM_PROB_REL = "BaiXuan/扩展功能/入群私聊/概率.json"
 _RECORD_WINDOW_SEC = 300
 _MAX_FORWARD_DEPTH = 3
 
-
 class JoinPmModule:
-    """入群私聊：录制与重放。"""
 
     def __init__(self, star) -> None:
         self.star = star
         self.store = star.store
 
-    # ==================== 指令方法（main.py 调用） ====================
-
     async def start_record(self, event, gid: str = "") -> Any:
-        """开始记录：/开始记录 群号（原 L8363 开始分支）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
@@ -54,15 +33,15 @@ class JoinPmModule:
             await self.store.write_json(f"{_PM_STORAGE_REL}/{gid}.json", [])
             await self.store.write_json(_PM_STATUS_REL, {"状态": "开始", "群号": gid})
             uid = str(event.get_sender_id())
-            # 300 秒窗口：超时强制结束（后台任务，不阻塞指令响应）
+
             asyncio.create_task(self._record_window(gid, uid))
             return f"已开启收录，请在300秒内发送内容进行收录！当前收录群号为「{gid}」"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"开始记录失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def _record_window(self, gid: str, uid: str) -> None:
-        """后台 300 秒窗口，超时强制结束。"""
+
         try:
             for _ in range(_RECORD_WINDOW_SEC):
                 await asyncio.sleep(1)
@@ -71,11 +50,11 @@ class JoinPmModule:
                     return
             await self.store.write_json(_PM_STATUS_REL, {"状态": "结束", "群号": gid})
             await self.star.sender.send_to_private(uid, "执行超时，已强制结束！")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"收录窗口任务异常: {e}")
 
     async def stop_record(self, event) -> Any:
-        """结束记录（原 L8363 结束分支）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
@@ -84,12 +63,12 @@ class JoinPmModule:
                 return f"目前已是「{cur}」状态啦～"
             await self.store.write_json(_PM_STATUS_REL, {"状态": "结束", "群号": ""})
             return "已结束本次收录！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"结束记录失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def view_record(self, event, gid: str = "") -> Any:
-        """查看记录内容：/查看记录内容 群号（原 L8437）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
@@ -102,12 +81,12 @@ class JoinPmModule:
             uid = str(event.get_sender_id())
             await self._replay_entries(uid, gid, entries)
             return f"已展示「{gid}」的全部入群私聊记录。"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"查看记录内容失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
     async def set_probability(self, event, args: str = "") -> Any:
-        """设置入群私聊概率：/设置入群私聊概率 群号 概率%（原 L8488）。"""
+
         try:
             if not await self.star.perm.check_owner(event):
                 return "你不是主人哦～"
@@ -123,14 +102,12 @@ class JoinPmModule:
                 "入群私聊概率已更新\n══════════════\n"
                 f"群号：{gid}\n概率：{percent}%\n存储值：{prob}"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"设置入群私聊概率失败: {e}")
             return f"指令执行出错：{type(e).__name__}: {e}"
 
-    # ==================== 新人入群被动重放 ====================
-
     async def on_group_increase(self, event, raw: dict) -> None:
-        """新人入群：群事件 join_pm 开启且概率命中时重放（原 L18046）。"""
+
         try:
             gid = str(raw.get("group_id") or "")
             uid = str(raw.get("user_id") or "")
@@ -144,7 +121,7 @@ class JoinPmModule:
             entries = await self.store.read_json(f"{_PM_STORAGE_REL}/{gid}.json", []) or []
             if isinstance(entries, list) and entries:
                 await self._replay_entries(uid, gid, entries)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"入群私聊重放失败: {e}")
 
     async def _get_probability(self, gid: str) -> float:
@@ -160,10 +137,8 @@ class JoinPmModule:
         except (TypeError, ValueError):
             return 0.2
 
-    # ==================== 被动收录（legacy 内处理） ====================
-
     async def _record_message(self, event, gid: str) -> bool:
-        """把一条私聊消息收录为条目（原 recordJoinGroupPmMessage）。"""
+
         try:
             segs = getattr(event, "message", None) or []
             text_parts: list = []
@@ -182,7 +157,7 @@ class JoinPmModule:
                     url = getattr(seg, "url", "") or getattr(seg, "file", "")
                     if url:
                         video_urls.append(str(url))
-            # 合并转发（CQ 或组件）
+
             m = re.search(r"\[CQ:forward,id=(\d+)\]", event.message_str or "")
             if m:
                 forward_nodes = await self._fetch_forward_nodes(m.group(1), 0)
@@ -210,7 +185,7 @@ class JoinPmModule:
             data.extend(items)
             await self.store.write_json(rel, data)
             return True
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"入群私聊收录失败: {e}")
             return False
 
@@ -242,7 +217,7 @@ class JoinPmModule:
             async with aiofiles.open(p, "wb") as f:
                 await f.write(data)
             return True
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"入群私聊媒体下载失败 {url}: {e}")
             return False
 
@@ -258,7 +233,7 @@ class JoinPmModule:
                 if node:
                     nodes.append(node)
             return nodes
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"[入群私聊] get_forward_msg 失败: {e}")
             return []
 
@@ -318,15 +293,13 @@ class JoinPmModule:
             return None
         return {"name": name, "uin": uin, "segments": segments}
 
-    # ==================== 重放 ====================
-
     async def _replay_entries(self, uid: str, gid: str, entries: list) -> None:
-        """逐条私聊重放，每条间隔 300ms（原 replayJoinGroupPmEntry）。"""
+
         for entry in entries:
             try:
                 await self._replay_one(uid, gid, entry)
                 await asyncio.sleep(0.3)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"[入群私聊] 发送失败: {e}")
 
     async def _replay_one(self, uid: str, gid: str, entry: Any) -> None:
@@ -387,12 +360,10 @@ class JoinPmModule:
                 chain += sub
         return chain
 
-    # ==================== 无前缀 legacy ====================
-
     async def legacy(self, event, message: str) -> Any:
-        """正则匹配无前缀入群私聊指令 + 收录状态下的私聊录制。"""
+
         try:
-            # 被动收录：私聊 + 收录状态开始 + 主人 + 非机器人自身
+
             if event.get_group_id() is None:
                 status = await self.store.read_key(_PM_STATUS_REL, "状态", "结束")
                 if str(status) == "开始":
@@ -414,6 +385,6 @@ class JoinPmModule:
             m = re.match(r"^设置入群私聊概率([0-9]+) ([0-9]+)%$", message)
             if m:
                 return await self.set_probability(event, f"{m.group(1)} {m.group(2)}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"入群私聊 legacy 异常: {e}")
         return None

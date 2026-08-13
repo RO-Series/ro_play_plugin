@@ -1,14 +1,3 @@
-"""授权系统模块（LicenseModule）。
-
-对应原 index.mjs 的 handleCardLicenseCommands（L61-L501）、checkAuthStatusImpl（L15-L43）
-与 KM_TIME_TABLE（L50-L57）。数据路径前缀「BaiXuan」→「BaiXuan」，卡密前缀 MK → RO。
-
-数据文件：
-- BaiXuan/授权系统/授权信息/{群号}.json（键：授权时间 / 卡密时长）
-- BaiXuan/授权系统/卡密管理/卡密数据.json（卡密 → {类型, 时长}）
-
-指令方法全部 try-except 兜底，权限指令（生成/添加/删除/列表）需 star.perm.check_admin。
-"""
 from __future__ import annotations
 
 import random
@@ -19,7 +8,6 @@ from typing import Any
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
 
-# 时长表（秒）：天 / 周 / 月 / 半年 / 年 / 永久（原 KM_TIME_TABLE）
 KM_TIME_TABLE: dict[str, int] = {
     "天": 86400,
     "周": 604800,
@@ -36,13 +24,11 @@ _USE_RE = re.compile(r"^使用卡密([\s\S]*)$")
 _DEL_RE = re.compile(r"^(删除|清空)卡密([\s\S]*)$")
 _CANCEL_RE = re.compile(r"^(删除|取消)授权([\s\S]*)$")
 
-
 def _now() -> int:
     return int(time.time())
 
-
 def _time_a(fmt: str, ts: int | None = None) -> str:
-    """原 timeA：y/m/d/H/i/s 占位格式化。"""
+
     t = time.localtime(_now() if ts is None else int(ts))
     table = {
         "y": f"{t.tm_year:04d}",
@@ -57,9 +43,8 @@ def _time_a(fmt: str, ts: int | None = None) -> str:
         out = out.replace(k, v)
     return out
 
-
 def _time_b(fmt: str, seconds: int) -> str:
-    """原 timeB：把秒数按 y/m/d/H/i/s 拆分为时长文本。"""
+
     remaining = int(seconds)
     units = {"y": 31536000, "m": 2678400, "d": 86400, "H": 3600, "i": 60, "s": 1}
     values: dict[str, int] = {}
@@ -72,19 +57,14 @@ def _time_b(fmt: str, seconds: int) -> str:
         out = out.replace(k, f"{v:02d}")
     return out
 
-
 def _new_card() -> str:
-    """生成卡密：RO + 6 位随机数 + 当前 Unix 秒（原 MK${rand(1e5,999999)}${ts}）。"""
+
     return f"RO{random.randint(100000, 999999)}{int(time.time())}"
 
-
 class LicenseModule:
-    """授权系统（卡密）。"""
 
     def __init__(self, star: Any) -> None:
         self.star = star
-
-    # ==================== 工具 ====================
 
     def _card_data_rel(self) -> str:
         return "BaiXuan/授权系统/卡密管理/卡密数据.json"
@@ -93,7 +73,7 @@ class LicenseModule:
         return f"BaiXuan/授权系统/授权信息/{gid}.json"
 
     async def _target_info(self, event: Any, gid: str = "") -> tuple[str, str]:
-        """返回 (来源描述, 授权信息相对路径)。"""
+
         if gid:
             return f"群聊({gid})", self._info_rel(gid)
         group_id = event.get_group_id()
@@ -108,7 +88,7 @@ class LicenseModule:
         return wj_time, wj_km
 
     async def _authorized(self, event: Any) -> bool:
-        """绕过授权配置开启时直接放行。"""
+
         try:
             if self.star.config.get("bypass_license", False):
                 return True
@@ -117,25 +97,23 @@ class LicenseModule:
             if wj_time == 0 or wj_km == 0:
                 return False
             return (_now() - wj_time) <= wj_km
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return False
 
     async def _forward_private(self, uid: Any, name: str, text: str) -> bool:
-        """把长文本以合并转发私发给用户（原 sendForward fakeEvent private）。"""
+
         try:
             node = self.star.sender.build_node(name, uid, text)
             return await self.star.api.call(
                 "send_private_forward_msg", user_id=str(uid), messages=[node]
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"私聊合并转发失败: {e}")
             return False
 
-    # ==================== 指令方法 ====================
-
     async def menu(self, event: Any):
-        """授权系统菜单（合并转发三段）。"""
+
         try:
             part1 = (
                 "用户指令:\n"
@@ -173,12 +151,12 @@ class LicenseModule:
                 " - 不需要授权系统的可以在后台开启「绕过授权」"
             )
             return [event.plain_result(part1), event.plain_result(part2), event.plain_result(part3)]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权系统菜单异常: {e}")
             return "菜单生成失败，请查看日志"
 
     async def check(self, event: Any, gid: str = ""):
-        """授权判断：/授权判断 或 /授权判断 群号。"""
+
         try:
             来源, rel = await self._target_info(event, gid.strip())
             wj_time, wj_km = await self._license_data(rel)
@@ -196,12 +174,12 @@ class LicenseModule:
                 lines.append("[授权状态]:已授权")
             lines.append("══════════════")
             return "\n".join(lines)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权判断异常: {e}")
             return "授权判断执行出错，请查看日志"
 
     async def use_card(self, event: Any, card: str = ""):
-        """使用卡密：/使用卡密 卡密。"""
+
         try:
             card = (card or "").strip()
             if not _CARD_RE.match(card):
@@ -242,12 +220,12 @@ class LicenseModule:
                 f"[到期时间]:{expire}\n"
                 "══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"使用卡密异常: {e}")
             return "卡密使用处理出错，请查看日志"
 
     async def card_list(self, event: Any):
-        """卡密列表（管理员，私聊合并转发）。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -283,12 +261,12 @@ class LicenseModule:
             await self.star.sender.send_reply(event, "已发给你的私聊啦，请查收～")
             await self._forward_private(uid, "[授权系统]", head + "\n" + body)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"卡密列表异常: {e}")
             return "卡密列表执行出错，请查看日志"
 
     async def generate(self, event: Any, args: str = ""):
-        """生成卡密：/生成卡密 类型 [数量]。数量默认 1，上限 100；>10 张用合并转发私发。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -320,12 +298,12 @@ class LicenseModule:
             else:
                 await self.star.sender.send_to_private(uid, text)
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"生成卡密异常: {e}")
             return "卡密生成出错，请查看日志"
 
     async def delete_card(self, event: Any, card: str = ""):
-        """删除卡密：/删除卡密 卡密。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -339,12 +317,12 @@ class LicenseModule:
                 return "卡密不存在！"
             await self.star.store.delete_key(self._card_data_rel(), card)
             return f"已删除卡密【{card}】"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"删除卡密异常: {e}")
             return "卡密删除出错，请查看日志"
 
     async def add_license(self, event: Any, args: str = ""):
-        """添加授权：/添加授权 类型 [群号]。无群号时作用于当前群聊/私聊。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -377,12 +355,12 @@ class LicenseModule:
                 f"[到期时间]:{_time_a('y-m-d H:i:s', extime)}\n"
                 "══════════════"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"添加授权异常: {e}")
             return "授权添加出错，请查看日志"
 
     async def remove_license(self, event: Any, gid: str = ""):
-        """删除授权：/删除授权 或 /删除授权 群号。"""
+
         try:
             if not await self.star.perm.check_admin(event):
                 return "你没有权限执行该指令哦～"
@@ -390,14 +368,12 @@ class LicenseModule:
             await self.star.store.write_key(rel, "授权时间", 0)
             await self.star.store.write_key(rel, "卡密时长", 0)
             return f"我这就去把【{mub}】的授权状态给bian了！"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"删除授权异常: {e}")
             return "授权删除出错，请查看日志"
 
-    # ==================== legacy 无前缀指令 ====================
-
     async def legacy(self, event: Any, message: str) -> Any:
-        """无前缀指令正则匹配（原 handleCardLicenseCommands）。"""
+
         try:
             if message == "授权系统":
                 return await self.menu(event)
@@ -422,6 +398,6 @@ class LicenseModule:
                 m = _CANCEL_RE.match(message)
                 return await self.remove_license(event, m.group(2))
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"授权系统 legacy 异常: {e}")
             return None

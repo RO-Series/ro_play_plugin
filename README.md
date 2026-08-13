@@ -1,8 +1,6 @@
-# RO_Play（astrbot_plugin_ro_play）
+# RO_Play（ro_play_plugin）
 
-综合性 QQ 机器人插件，
-包含授权系统、群管系统、入群审核、娱乐经济、群老婆、漂流瓶、发卡、音乐点歌、问答、续火、
-黑名单/违禁词、发言统计、伪造聊天、马甲、入群私聊、视频解析、今日运势及多种工具。
+综合性 QQ 机器人插件：授权系统、群管系统、入群审核、娱乐经济、群老婆、漂流瓶、发卡、音乐点歌、问答、续火、黑名单/违禁词、发言统计、伪造聊天、马甲、入群私聊、视频解析、今日运势及多种工具。
 
 ## 安装
 
@@ -10,8 +8,7 @@
 2. 在 AstrBot WebUI 插件页启用本插件。
 3. 首次启用后插件会自动把 `data/templates/` 模板复制到 `data/plugin_data/ro_play_plugin/`。
 
-**平台要求**：仅支持 `aiocqhttp`（QQ 个人号 / OneBot v11）适配器。群管、合并转发、视频段、
-戳一戳等能力在 QQ 官方机器人适配器上不可用。
+**平台要求**：仅支持 `aiocqhttp`（QQ 个人号 / OneBot v11）适配器。群管、合并转发、视频段、戳一戳等能力在 QQ 官方机器人适配器上不可用。
 
 ## 配置（WebUI 插件配置面板）
 
@@ -19,7 +16,7 @@
 |---|---|---|
 | `owner_qqs` | string | 主人 QQ，逗号分隔，拥有全部管理指令权限 |
 | `legacy_no_prefix` | bool | 无前缀指令兼容（如直接发「签到」「禁言@人」），默认开启 |
-| `html_render_enabled` | bool | 签到/运势/状态等使用 HTML 渲染出图（原 cs_of），默认关闭则纯文本 |
+| `html_render_enabled` | bool | 签到/运势/状态等使用 HTML 渲染出图，默认关闭则纯文本 |
 | `bypass_license` | bool | 跳过授权系统校验（开发/自用） |
 | `group_whitelist` / `friend_whitelist` | list | 群聊/私聊执行白名单，留空=全部 |
 | `music_source` | string | 默认音源：汽水 / QQ / 酷我 / 网易云 |
@@ -28,7 +25,7 @@
 
 ## 指令速览
 
-指令均以 `/` 开头（如 `/签到`、`/点歌 歌名`、`/禁言 60`）；开启 `legacy_no_prefix` 后也可直接输入原风格指令（无 `/` 前缀）。
+指令以 `/` 开头（如 `/签到`、`/点歌 歌名`、`/禁言 60`）；开启 `legacy_no_prefix` 后也可直接输入无 `/` 前缀的指令。
 
 - 娱乐：`/签到` `/钓鱼 [次数]` `/银行系统` `/存款 100` `/取款 100` `/幸运轮盘 100` `/打劫` `/今日运势` `/我的信息` `/商店` `/买 #名称 #数量`
 - 群老婆：`/今日老婆` `/我的老婆` `/更换老婆` `/换群老婆`
@@ -46,11 +43,14 @@
 
 ## WebUI Pages
 
-插件注册了 6 个 Dashboard 页面（在 AstrBot WebUI 插件详情页进入）：
-`设置`、`事件开关`、`群发广播`、`数据编辑`、`自动点赞`、`关于`。
-页面通过 Bridge SDK（`window.AstrBotPluginPage`）与后端 API 交互。
+插件注册了 6 个 Dashboard 页面（在 AstrBot WebUI 插件详情页进入）：`设置`、`事件开关`、`群发广播`、`数据编辑`、`自动点赞`、`关于`。页面通过 Bridge SDK（`window.AstrBotPluginPage`）与后端 API 交互。
+
+## 开发者
+
+- 代码结构：`main.py`（Star 入口 + 指令注册）、`lib/`（基础设施 + 功能模块 + 视频解析）、`pages/`（WebUI）。
+- 存储：小数据用 KV（`get_kv_data/put_kv_data`），业务数据用 `lib/storage.py` 的 DataStore（相对 `BaiXuan/` 路径）。
+- 错误处理：所有指令与事件处理器均 try-except 兜底，不会因单条消息崩溃。
 
 ## 许可证
 
-本插件由ROTeam/BaiXuan开发并开源，请勿用于商业用途。
 仅供学习与个人使用。
