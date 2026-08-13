@@ -4,13 +4,11 @@
 包含授权系统、群管系统、入群审核、娱乐经济、群老婆、漂流瓶、发卡、音乐点歌、问答、续火、
 黑名单/违禁词、发言统计、伪造聊天、马甲、入群私聊、视频解析、今日运势及多种工具。
 
-> 作者标识与路径前缀已统一替换：`筱筱吖` → `BaiXuan`，`MKbot` → `RO_Play`，`MK` → `RO`。
-
 ## 安装
 
 1. 将本目录放入 AstrBot 的 `data/plugins/` 下（或打包 zip 后在 WebUI 插件管理上传）。
 2. 在 AstrBot WebUI 插件页启用本插件。
-3. 首次启用后插件会自动把 `data/templates/` 模板复制到 `data/plugin_data/astrbot_plugin_ro_play/`。
+3. 首次启用后插件会自动把 `data/templates/` 模板复制到 `data/plugin_data/ro_play_plugin/`。
 
 **平台要求**：仅支持 `aiocqhttp`（QQ 个人号 / OneBot v11）适配器。群管、合并转发、视频段、
 戳一戳等能力在 QQ 官方机器人适配器上不可用。
@@ -57,18 +55,10 @@
 在 AstrBot 环境外执行：
 
 ```bash
-python migrate_data.py --src "旧NapCat插件数据目录" --dst "AstrBot/data/plugin_data/astrbot_plugin_ro_play"
+python migrate_data.py --src "旧NapCat插件数据目录" --dst "AstrBot/data/plugin_data/ro_play_plugin"
 ```
-
-脚本会把旧 `筱筱吖/` 目录整体迁移为 `BaiXuan/` 前缀结构，并把旧 `config.json`
-字段映射到新配置键（写入 `--dst/config.json`，随后可在 WebUI 中导入或手动配置）。
-
-## 开发者
-
-- 代码结构：`main.py`（Star 入口 + 指令注册）、`lib/`（基础设施 + 功能模块 + 视频解析）、`pages/`（WebUI）。
-- 存储：小数据用 KV（`get_kv_data/put_kv_data`），业务数据用 `lib/storage.py` 的 DataStore（相对 `BaiXuan/` 路径）。
-- 错误处理：所有指令与事件处理器均 try-except 兜底，不会因单条消息崩溃。
 
 ## 许可证
 
-迁移自开源项目 MKbot（NapCat 插件），仅供学习与个人使用。
+本插件由ROTeam/BaiXuan开发并开源，请勿用于商业用途。
+仅供学习与个人使用。
