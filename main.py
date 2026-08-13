@@ -13,8 +13,15 @@ from __future__ import annotations
 
 import asyncio
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
+
+# AstrBot 加载插件时不会把插件目录加入 sys.path，
+# 此处注入插件根目录，使 `lib` 包（lib/、lib/modules/、lib/video/）可被绝对导入。
+_PLUGIN_ROOT = str(Path(__file__).resolve().parent)
+if _PLUGIN_ROOT not in sys.path:
+    sys.path.insert(0, _PLUGIN_ROOT)
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import MessageEventResult, filter, AstrMessageEvent
@@ -805,7 +812,7 @@ class Main(Star):
     # ==================== 指令：群管（admin 指令组） ====================
 
     @filter.command_group("admin")
-    def admin(self):
+    def admin():
         """群管指令组：/admin mute|kick|promote|..."""
 
     @admin.command("mute")
